@@ -1,0 +1,7 @@
+{
+  "import": [
+    "Lampese/lomo/types",
+    "Lampese/lomo/op",
+    "Lampese/lomo/arena"
+  ]
+}

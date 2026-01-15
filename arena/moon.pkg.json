@@ -1,0 +1,6 @@
+{
+  "import": [
+    "Lampese/lomo/types",
+    "Lampese/lomo/op"
+  ]
+}

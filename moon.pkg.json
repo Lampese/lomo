@@ -1,0 +1,11 @@
+{
+  "import": [
+    "Lampese/lomo/types",
+    "Lampese/lomo/op",
+    "Lampese/lomo/oplog",
+    "Lampese/lomo/arena",
+    "Lampese/lomo/state",
+    "Lampese/lomo/container",
+    "Lampese/lomo/encoding"
+  ]
+}
