@@ -461,6 +461,11 @@ fn LoroDoc::container_diff(
       Ok(list) => list
       Err(_) => []
     }
+  } else if container_type == @types.ContainerType::Counter {
+    match self.state.counter_value(container_id) {
+      Ok(value) => [@types.LoroValue::F64(value)]
+      Err(_) => []
+    }
   } else {
     []
   }
@@ -624,6 +629,15 @@ pub fn LoroDoc::get_map(
 ) -> @container.MapHandler {
   let id = @types.ContainerID::root(name, @types.ContainerType::Map)
   @container.MapHandler::new(id)
+}
+
+///|
+pub fn LoroDoc::get_counter(
+  _self : LoroDoc,
+  name : String,
+) -> @container.CounterHandler {
+  let id = @types.ContainerID::root(name, @types.ContainerType::Counter)
+  @container.CounterHandler::new(id)
 }
 
 ///|
@@ -879,9 +893,32 @@ pub fn LoroDoc::list_set(
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let elem_id = id_full.to_id_lp()
-  let op = @op.ListOp::Set(elem_id~, value~)
-  self.apply_list_op(handler, op)
+  let need_txn = !self.txn_active
+  if need_txn {
+    match self.begin_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  let del = @op.DeleteSpanWithId::new(id_full.to_id(), pos, 1)
+  let del_op = @op.ListOp::Delete(del)
+  match self.apply_list_op(handler, del_op) {
+    Ok(_) => ()
+    Err(err) => return Err(err)
+  }
+  let slice = @op.ListSlice::RawData([value])
+  let ins_op = @op.ListOp::Insert(slice~, pos~)
+  match self.apply_list_op(handler, ins_op) {
+    Ok(_) => ()
+    Err(err) => return Err(err)
+  }
+  if need_txn {
+    match self.commit_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  Ok(())
 }
 
 ///|
@@ -940,11 +977,10 @@ pub fn LoroDoc::movable_list_move(
   if from == to {
     return Ok(())
   }
-  let id_full = match self.state.movable_list_id_at(handler.id(), from) {
+  let elem_id = match self.state.movable_list_elem_id_at(handler.id(), from) {
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let elem_id = id_full.to_id_lp()
   let op = @op.ListOp::Move(from~, to~, elem_id~)
   self.apply_list_op_to(handler.id(), op)
 }
@@ -956,11 +992,10 @@ pub fn LoroDoc::movable_list_set(
   pos : Int,
   value : @types.LoroValue,
 ) -> Result[Unit, @types.LoroError] {
-  let id_full = match self.state.movable_list_id_at(handler.id(), pos) {
+  let elem_id = match self.state.movable_list_elem_id_at(handler.id(), pos) {
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let elem_id = id_full.to_id_lp()
   let op = @op.ListOp::Set(elem_id~, value~)
   self.apply_list_op_to(handler.id(), op)
 }
@@ -1246,11 +1281,7 @@ fn LoroDoc::tree_node_value(
   map["children"] = @types.LoroValue::List(child_values)
   if with_meta {
     let meta_id = node_id.meta_container()
-    let meta_value = match self.state.map_value(meta_id) {
-      Some(value) => value
-      None => @types.LoroValue::Map({})
-    }
-    map["meta"] = meta_value
+    map["meta"] = self.state.deep_value_for_container(meta_id)
   }
   Ok(@types.LoroValue::Map(map))
 }
@@ -1360,6 +1391,33 @@ pub fn LoroDoc::map_delete(
 }
 
 ///|
+pub fn LoroDoc::counter_add(
+  self : LoroDoc,
+  handler : @container.CounterHandler,
+  delta : Double,
+) -> Result[Unit, @types.LoroError] {
+  let op = @op.CounterOp::new(delta)
+  self.apply_local_content(handler.id(), @op.RawOpContent::Counter(op))
+}
+
+///|
+pub fn LoroDoc::counter_inc(
+  self : LoroDoc,
+  handler : @container.CounterHandler,
+  delta : Int,
+) -> Result[Unit, @types.LoroError] {
+  self.counter_add(handler, delta.to_double())
+}
+
+///|
+pub fn LoroDoc::counter_value(
+  self : LoroDoc,
+  handler : @container.CounterHandler,
+) -> Result[Double, @types.LoroError] {
+  self.state.counter_value(handler.id())
+}
+
+///|
 pub fn LoroDoc::text_insert(
   self : LoroDoc,
   handler : @container.TextHandler,
@@ -1367,7 +1425,11 @@ pub fn LoroDoc::text_insert(
   text : String,
 ) -> Result[Unit, @types.LoroError] {
   let slice = @op.ListSlice::from_str(text)
-  let op = @op.ListOp::Insert(slice~, pos~)
+  let list_pos = match self.state.text_text_pos_to_list_pos(handler.id(), pos) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let op = @op.ListOp::Insert(slice~, pos=list_pos)
   self.apply_text_op(handler, op)
 }
 
@@ -1597,8 +1659,12 @@ pub fn LoroDoc::text_delete(
     Ok(value) => value
     Err(err) => return Err(err)
   }
+  let list_pos = match self.state.text_text_pos_to_list_pos(handler.id(), pos) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
   let id_start = id_full.to_id()
-  let del = @op.DeleteSpanWithId::new(id_start, pos, len)
+  let del = @op.DeleteSpanWithId::new(id_start, list_pos, len)
   let op = @op.ListOp::Delete(del)
   self.apply_text_op(handler, op)
 }
@@ -1654,8 +1720,45 @@ pub fn LoroDoc::text_mark(
     Some(v) => v
     None => return Err(@types.LoroError::StyleConfigMissing(key))
   }
-  let op = @op.ListOp::StyleStart(start~, end~, key~, info~, value~)
-  self.apply_text_op(handler, op)
+  let list_start = match
+    self.state.text_text_pos_to_list_pos(handler.id(), start) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let list_end = match self.state.text_text_pos_to_list_pos(handler.id(), end) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let need_txn = !self.txn_active
+  if need_txn {
+    match self.begin_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  let start_op = @op.ListOp::StyleStart(
+    start=list_start,
+    end=list_end,
+    key~,
+    info~,
+    value~,
+  )
+  match self.apply_text_op(handler, start_op) {
+    Ok(_) => ()
+    Err(err) => return Err(err)
+  }
+  let end_op = @op.ListOp::StyleEnd
+  match self.apply_text_op(handler, end_op) {
+    Ok(_) => ()
+    Err(err) => return Err(err)
+  }
+  if need_txn {
+    match self.commit_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  Ok(())
 }
 
 ///|
@@ -1710,14 +1813,45 @@ pub fn LoroDoc::text_unmark(
     Some(v) => v
     None => return Err(@types.LoroError::StyleConfigMissing(key))
   }
-  let op = @op.ListOp::StyleStart(
-    start~,
-    end~,
+  let list_start = match
+    self.state.text_text_pos_to_list_pos(handler.id(), start) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let list_end = match self.state.text_text_pos_to_list_pos(handler.id(), end) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let need_txn = !self.txn_active
+  if need_txn {
+    match self.begin_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  let start_op = @op.ListOp::StyleStart(
+    start=list_start,
+    end=list_end,
     key~,
     info~,
     value=@types.LoroValue::Null,
   )
-  self.apply_text_op(handler, op)
+  match self.apply_text_op(handler, start_op) {
+    Ok(_) => ()
+    Err(err) => return Err(err)
+  }
+  let end_op = @op.ListOp::StyleEnd
+  match self.apply_text_op(handler, end_op) {
+    Ok(_) => ()
+    Err(err) => return Err(err)
+  }
+  if need_txn {
+    match self.commit_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  Ok(())
 }
 
 ///|
@@ -1942,6 +2076,22 @@ pub fn LoroDoc::export_updates(
 }
 
 ///|
+pub fn LoroDoc::export_loro_updates(
+  self : LoroDoc,
+) -> Result[Bytes, @types.LoroError] {
+  let changes = self.oplog.all_changes()
+  @encoding.encode_loro_updates(self.arena, changes)
+}
+
+///|
+pub fn LoroDoc::export_loro_snapshot(
+  self : LoroDoc,
+) -> Result[Bytes, @types.LoroError] {
+  let changes = self.oplog.all_changes()
+  @encoding.encode_loro_snapshot(self.arena, self.state, changes)
+}
+
+///|
 priv enum ApplyState {
   Applied
   CanApply
@@ -2008,6 +2158,53 @@ fn LoroDoc::apply_decoded_change(
     Some(saved) => self.emit_change(saved, false)
     None => ()
   }
+  let change_end = change.lamport + offset.reinterpret_as_uint()
+  if change_end > self.lamport {
+    self.lamport = change_end
+  }
+  if change.id.peer == self.peer {
+    let local_end = change.id.counter + offset
+    if local_end > self.counter {
+      self.counter = local_end
+    }
+  }
+  Ok(())
+}
+
+///|
+fn LoroDoc::apply_decoded_change_to_state_and_oplog(
+  self : LoroDoc,
+  change : @encoding.DecodedChange,
+) -> Result[Unit, @types.LoroError] {
+  match self.oplog.get_change(change.id) {
+    Some(_) => return Ok(())
+    None => ()
+  }
+  let ops : Array[@op.Op] = []
+  let mut offset = 0
+  for entry in change.ops {
+    let content_len = entry.content.content_len()
+    let id = change.id.inc(offset)
+    let lamport = change.lamport + offset.reinterpret_as_uint()
+    let raw_op = @op.RawOp::new(id, lamport, entry.container, entry.content)
+    let persisted = self.arena.to_persisted_op(raw_op)
+    ops.push(persisted)
+    match self.state.apply_raw_op(self.arena, raw_op) {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+    offset = offset + content_len
+  }
+  let new_change = @oplog.Change::new_with_meta(
+    ops,
+    change.deps,
+    change.id,
+    change.lamport,
+    change.timestamp,
+    change.commit_msg,
+    change.origin,
+  )
+  self.oplog.insert_new_change(new_change, false)
   let change_end = change.lamport + offset.reinterpret_as_uint()
   if change_end > self.lamport {
     self.lamport = change_end
@@ -2115,10 +2312,19 @@ fn LoroDoc::apply_decoded_snapshot(
   self.arena = @arena.SharedArena::new()
   self.counter = 0
   self.lamport = 0
-  for change in snapshot.changes {
-    match self.apply_decoded_change_to_oplog(change) {
-      Ok(_) => ()
-      Err(err) => return Err(err)
+  if snapshot.needs_replay {
+    for change in snapshot.changes {
+      match self.apply_decoded_change_to_state_and_oplog(change) {
+        Ok(_) => ()
+        Err(err) => return Err(err)
+      }
+    }
+  } else {
+    for change in snapshot.changes {
+      match self.apply_decoded_change_to_oplog(change) {
+        Ok(_) => ()
+        Err(err) => return Err(err)
+      }
     }
   }
   self.emit_snapshot()

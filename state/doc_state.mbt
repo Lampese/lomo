@@ -6,6 +6,7 @@ pub enum ContainerState {
   TextState(TextState)
   MovableListState(MovableListState)
   TreeState(TreeState)
+  CounterState(CounterState)
 } derive(Show)
 
 ///|
@@ -37,6 +38,8 @@ pub fn DocState::get_or_create(
           ContainerState::MovableListState(MovableListState::new())
         @types.ContainerType::Tree =>
           ContainerState::TreeState(TreeState::new())
+        @types.ContainerType::Counter =>
+          ContainerState::CounterState(CounterState::new())
         _ => ContainerState::MapState(MapState::new())
       }
       self.containers[id] = state
@@ -68,6 +71,8 @@ pub fn DocState::apply_raw_op(
           ContainerState::MovableListState(MovableListState::new())
         @types.ContainerType::Tree =>
           ContainerState::TreeState(TreeState::new())
+        @types.ContainerType::Counter =>
+          ContainerState::CounterState(CounterState::new())
         _ => ContainerState::MapState(MapState::new())
       }
       self.containers[id] = created
@@ -123,6 +128,14 @@ pub fn DocState::apply_raw_op(
         Ok(_) => ContainerState::TreeState(tree_state)
         Err(err) => return Err(err)
       }
+    (
+      @types.ContainerType::Counter,
+      ContainerState::CounterState(counter_state),
+      @op.InnerContent::Counter(counter_op),
+    ) => {
+      counter_state.apply(counter_op.delta())
+      ContainerState::CounterState(counter_state)
+    }
     _ => return Err(@types.LoroError::Unsupported("op/container mismatch"))
   }
   self.containers[id] = updated
@@ -153,6 +166,8 @@ pub fn DocState::apply_op(
           ContainerState::MovableListState(MovableListState::new())
         @types.ContainerType::Tree =>
           ContainerState::TreeState(TreeState::new())
+        @types.ContainerType::Counter =>
+          ContainerState::CounterState(CounterState::new())
         _ => ContainerState::MapState(MapState::new())
       }
       self.containers[container_id] = created
@@ -208,6 +223,14 @@ pub fn DocState::apply_op(
         Ok(_) => ContainerState::TreeState(tree_state)
         Err(err) => return Err(err)
       }
+    (
+      @types.ContainerType::Counter,
+      ContainerState::CounterState(counter_state),
+      @op.InnerContent::Counter(counter_op),
+    ) => {
+      counter_state.apply(counter_op.delta())
+      ContainerState::CounterState(counter_state)
+    }
     _ => return Err(@types.LoroError::Unsupported("op/container mismatch"))
   }
   self.containers[container_id] = updated
@@ -280,6 +303,15 @@ pub fn DocState::set_tree_state(
 }
 
 ///|
+pub fn DocState::set_counter_state(
+  self : DocState,
+  id : @types.ContainerID,
+  state : CounterState,
+) -> Unit {
+  self.containers[id] = ContainerState::CounterState(state)
+}
+
+///|
 pub fn DocState::list_id_at(
   self : DocState,
   id : @types.ContainerID,
@@ -312,6 +344,19 @@ pub fn DocState::movable_list_id_at(
   match self.containers.get(id) {
     Some(ContainerState::MovableListState(list_state)) =>
       list_state.id_at(index)
+    _ => Err(@types.LoroError::InvalidContainer("movable list not found"))
+  }
+}
+
+///|
+pub fn DocState::movable_list_elem_id_at(
+  self : DocState,
+  id : @types.ContainerID,
+  index : Int,
+) -> Result[@types.IdLp, @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::MovableListState(list_state)) =>
+      list_state.elem_id_at(index)
     _ => Err(@types.LoroError::InvalidContainer("movable list not found"))
   }
 }
@@ -381,6 +426,41 @@ pub fn DocState::text_styles(
 ) -> Result[Array[StyleSpan], @types.LoroError] {
   match self.containers.get(id) {
     Some(ContainerState::TextState(text_state)) => Ok(text_state.styles())
+    _ => Err(@types.LoroError::InvalidContainer("text not found"))
+  }
+}
+
+///|
+pub fn DocState::text_list_pos_to_text_pos(
+  self : DocState,
+  id : @types.ContainerID,
+  list_pos : Int,
+) -> Result[Int, @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::TextState(text_state)) =>
+      Ok(text_state.list_pos_to_text_pos(list_pos))
+    _ => Err(@types.LoroError::InvalidContainer("text not found"))
+  }
+}
+
+///|
+pub fn DocState::text_text_pos_to_list_pos(
+  self : DocState,
+  id : @types.ContainerID,
+  text_pos : Int,
+) -> Result[Int, @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::TextState(text_state)) =>
+      Ok(text_state.text_pos_to_list_pos(text_pos))
+    None => {
+      let container_type = id.container_type()
+      if container_type == @types.ContainerType::Text ||
+        container_type == @types.ContainerType::RichText {
+        Ok(0)
+      } else {
+        Err(@types.LoroError::InvalidContainer("text not found"))
+      }
+    }
     _ => Err(@types.LoroError::InvalidContainer("text not found"))
   }
 }
@@ -491,6 +571,18 @@ pub fn DocState::map_value(
 }
 
 ///|
+pub fn DocState::counter_value(
+  self : DocState,
+  id : @types.ContainerID,
+) -> Result[Double, @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::CounterState(counter_state)) =>
+      Ok(counter_state.value())
+    _ => Err(@types.LoroError::InvalidContainer("counter not found"))
+  }
+}
+
+///|
 pub fn DocState::deep_value_for_container(
   self : DocState,
   id : @types.ContainerID,
@@ -522,6 +614,7 @@ fn DocState::empty_container_value(
     @types.ContainerType::Text => @types.LoroValue::String("")
     @types.ContainerType::MovableList => @types.LoroValue::List([])
     @types.ContainerType::Tree => @types.LoroValue::List([])
+    @types.ContainerType::Counter => @types.LoroValue::F64(0.0)
     _ => @types.LoroValue::Null
   }
 }
@@ -579,6 +672,8 @@ fn DocState::container_deep_value(
       }
       @types.LoroValue::List(items)
     }
+    Some(ContainerState::CounterState(counter_state)) =>
+      counter_state.to_value()
     None => self.empty_container_value(id.container_type())
   }
 }

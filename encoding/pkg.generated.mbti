@@ -1,0 +1,440 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo/encoding"
+
+import(
+  "Lampese/lomo/arena"
+  "Lampese/lomo/op"
+  "Lampese/lomo/oplog"
+  "Lampese/lomo/state"
+  "Lampese/lomo/types"
+  "moonbitlang/core/buffer"
+)
+
+// Values
+pub fn build_loro_payload(Bytes, LoroEncodeMode) -> Bytes
+
+pub fn decode_bool_rle(Bytes) -> Result[Array[Bool], @types.LoroError]
+
+pub fn decode_changes(Bytes) -> Result[Array[DecodedChange], @types.LoroError]
+
+pub fn decode_container_arena(Bytes, Array[String], Array[UInt64]) -> Result[Array[@types.ContainerID], @types.LoroError]
+
+pub fn decode_delta_rle_i32(Bytes) -> Result[Array[Int], @types.LoroError]
+
+pub fn decode_delta_rle_u32(Bytes) -> Result[Array[Int], @types.LoroError]
+
+pub fn decode_delta_rle_usize(Bytes) -> Result[Array[Int], @types.LoroError]
+
+pub fn decode_keys(Bytes) -> Result[Array[String], @types.LoroError]
+
+pub fn decode_kv_store(Bytes) -> Result[Array[KvEntry], @types.LoroError]
+
+pub fn decode_loro_block_bytes(Bytes) -> Result[Array[DecodedChange], @types.LoroError]
+
+pub fn decode_loro_doc_state(Bytes?, Bytes) -> Result[@state.DocState, @types.LoroError]
+
+pub fn decode_loro_snapshot(Bytes) -> Result[DecodedSnapshot, @types.LoroError]
+
+pub fn decode_loro_snapshot_body(Bytes) -> Result[DecodedSnapshot, @types.LoroError]
+
+pub fn decode_loro_updates(Bytes) -> Result[Array[DecodedChange], @types.LoroError]
+
+pub fn decode_loro_updates_body(Bytes) -> Result[Array[DecodedChange], @types.LoroError]
+
+pub fn decode_payload(Bytes) -> Result[DecodedPayload, @types.LoroError]
+
+pub fn decode_positions(Bytes) -> Result[Array[Bytes], @types.LoroError]
+
+pub fn decode_rle_u32(Bytes) -> Result[Array[Int], @types.LoroError]
+
+pub fn decode_rle_u8(Bytes) -> Result[Array[Byte], @types.LoroError]
+
+pub fn decode_snapshot(Bytes) -> Result[DecodedSnapshot, @types.LoroError]
+
+pub fn decode_value(Bytes) -> Result[@types.LoroValue, @types.LoroError]
+
+pub fn encode_bool_rle(Array[Bool]) -> Bytes
+
+pub fn encode_changes(@arena.SharedArena, Array[@oplog.Change]) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_container_arena(Array[@types.ContainerID], Array[String], Array[UInt64]) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_delta_of_delta_i64(Array[Int64]) -> Bytes
+
+pub fn encode_delta_of_delta_u32(Array[Int]) -> Bytes
+
+pub fn encode_delta_rle_i32(Array[Int]) -> Bytes
+
+pub fn encode_delta_rle_u32(Array[Int]) -> Bytes
+
+pub fn encode_delta_rle_usize(Array[Int]) -> Bytes
+
+pub fn encode_keys(Array[String]) -> Bytes
+
+pub fn encode_kv_store(Array[KvEntry]) -> Bytes
+
+pub fn encode_loro_doc_state(@state.DocState) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_loro_snapshot(@arena.SharedArena, @state.DocState, Array[@oplog.Change]) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_loro_snapshot_body(@arena.SharedArena, @state.DocState, Array[@oplog.Change]) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_loro_updates(@arena.SharedArena, Array[@oplog.Change]) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_loro_updates_body(@arena.SharedArena, Array[@oplog.Change]) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_positions(Array[Bytes]) -> Bytes
+
+pub fn encode_rle_u32(Array[Int]) -> Bytes
+
+pub fn encode_rle_u8(Array[Byte]) -> Bytes
+
+pub fn encode_snapshot(@arena.SharedArena, @state.DocState, Array[@oplog.Change]) -> Result[Bytes, @types.LoroError]
+
+pub fn encode_value(@types.LoroValue) -> Result[Bytes, @types.LoroError]
+
+pub fn loro_container_type_from_u8(Byte) -> @types.ContainerType
+
+pub fn lz4_decode_frame(Bytes) -> Result[Bytes, @types.LoroError]
+
+pub fn parse_loro_header(Bytes, Bool) -> Result[(LoroEncodeMode, Bytes), @types.LoroError]
+
+pub fn read_bytes(Reader) -> Result[Bytes, @types.LoroError]
+
+pub fn read_i32_le_at(Bytes, Int) -> Result[Int, @types.LoroError]
+
+pub fn read_int(Reader) -> Result[Int, @types.LoroError]
+
+pub fn read_ivarint(Reader) -> Result[Int64, @types.LoroError]
+
+pub fn read_string(Reader) -> Result[String, @types.LoroError]
+
+pub fn read_u16_le_at(Bytes, Int) -> Result[Int, @types.LoroError]
+
+pub fn read_u32_le_at(Bytes, Int) -> Result[UInt, @types.LoroError]
+
+pub fn read_u64_le_at(Bytes, Int) -> Result[UInt64, @types.LoroError]
+
+pub fn read_uint(Reader) -> Result[UInt, @types.LoroError]
+
+pub fn read_uvarint(Reader) -> Result[UInt64, @types.LoroError]
+
+pub fn read_value(Reader) -> Result[@types.LoroValue, @types.LoroError]
+
+pub fn take_n_any_rle_u32(Bytes, Int) -> Result[(Array[Int], Bytes), @types.LoroError]
+
+pub fn take_n_any_rle_usize(Bytes, Int) -> Result[(Array[Int], Bytes), @types.LoroError]
+
+pub fn take_n_bool_rle(Bytes, Int) -> Result[(Array[Bool], Bytes), @types.LoroError]
+
+pub fn take_n_delta_of_delta_i64(Bytes, Int) -> Result[(Array[Int64], Bytes), @types.LoroError]
+
+pub fn take_n_delta_of_delta_u32(Bytes, Int) -> Result[(Array[Int], Bytes), @types.LoroError]
+
+pub fn take_n_delta_rle_u32(Bytes, Int) -> Result[(Array[Int], Bytes), @types.LoroError]
+
+pub fn write_bytes(@buffer.Buffer, Bytes) -> Unit
+
+pub fn write_int(@buffer.Buffer, Int) -> Unit
+
+pub fn write_ivarint(@buffer.Buffer, Int64) -> Unit
+
+pub fn write_string(@buffer.Buffer, String) -> Unit
+
+pub fn write_uint(@buffer.Buffer, UInt) -> Unit
+
+pub fn write_uvarint(@buffer.Buffer, UInt64) -> Unit
+
+pub fn write_value(@buffer.Buffer, @types.LoroValue) -> Result[Unit, @types.LoroError]
+
+pub fn xxhash32(Bytes, UInt) -> UInt
+
+// Errors
+
+// Types and methods
+pub struct ByteReader {
+  bytes : Bytes
+  mut pos : Int
+}
+pub fn ByteReader::new(Bytes) -> Self
+pub fn ByteReader::read_bytes(Self, Int) -> Result[Bytes, @types.LoroError]
+pub fn ByteReader::read_u16_le(Self) -> Result[Int, @types.LoroError]
+pub fn ByteReader::read_u32_le(Self) -> Result[UInt, @types.LoroError]
+pub fn ByteReader::read_u64_le(Self) -> Result[UInt64, @types.LoroError]
+pub fn ByteReader::read_u8(Self) -> Result[Byte, @types.LoroError]
+pub fn ByteReader::remaining(Self) -> Int
+
+pub struct DecodedChange {
+  id : @types.ID
+  lamport : UInt
+  deps : @types.Frontiers
+  timestamp : Int64
+  commit_msg : String?
+  origin : String?
+  ops : Array[DecodedOp]
+}
+pub fn DecodedChange::len(Self) -> Int
+pub impl Show for DecodedChange
+
+pub struct DecodedOp {
+  container : @types.ContainerID
+  content : @op.RawOpContent
+}
+pub impl Show for DecodedOp
+
+pub enum DecodedPayload {
+  Updates(Array[DecodedChange])
+  Snapshot(DecodedSnapshot)
+}
+pub impl Show for DecodedPayload
+
+pub struct DecodedSnapshot {
+  state : @state.DocState
+  changes : Array[DecodedChange]
+  needs_replay : Bool
+}
+pub impl Show for DecodedSnapshot
+
+pub struct KvEntry {
+  key : Bytes
+  value : Bytes
+}
+pub impl Show for KvEntry
+
+pub struct LoroChangesHeader {
+  peer : UInt64
+  counter : Int
+  n_changes : Int
+  peers : Array[UInt64]
+  counters : Array[Int]
+  lamports : Array[UInt]
+  deps_groups : Array[@types.Frontiers]
+}
+pub impl Show for LoroChangesHeader
+
+type LoroDeleteStartId
+pub impl Show for LoroDeleteStartId
+
+pub enum LoroEncodeMode {
+  OutdatedRle
+  OutdatedSnapshot
+  FastSnapshot
+  FastUpdates
+}
+pub fn LoroEncodeMode::from_u16(UInt) -> Self?
+pub fn LoroEncodeMode::is_snapshot(Self) -> Bool
+pub fn LoroEncodeMode::to_u16(Self) -> UInt
+pub impl Eq for LoroEncodeMode
+pub impl Show for LoroEncodeMode
+
+type LoroEncodedBlock
+pub impl Show for LoroEncodedBlock
+
+type LoroEncodedOp
+pub impl Show for LoroEncodedOp
+
+pub struct LoroEncodedTreeMove {
+  target_idx : Int
+  is_parent_null : Bool
+  parent_idx : Int
+  position_idx : Int
+}
+pub impl Show for LoroEncodedTreeMove
+
+pub struct LoroMarkStart {
+  len : Int
+  key : String
+  value : @types.LoroValue
+  info : Byte
+}
+pub impl Show for LoroMarkStart
+
+pub enum LoroOpValue {
+  Null
+  True
+  False
+  I64(Int64)
+  F64(Double)
+  Str(String)
+  Binary(Bytes)
+  ContainerIdx(Int)
+  DeleteOnce
+  DeleteSeq
+  DeltaInt(Int)
+  LoroValue(@types.LoroValue)
+  MarkStart(LoroMarkStart)
+  TreeMove(LoroEncodedTreeMove)
+  RawTreeMove(LoroRawTreeMove)
+  ListMove(from~ : Int, from_idx~ : Int, lamport~ : UInt)
+  ListSet(peer_idx~ : Int, lamport~ : UInt, value~ : @types.LoroValue)
+  Future(kind~ : Byte, data~ : Bytes)
+}
+pub impl Show for LoroOpValue
+
+pub enum LoroOpValueKind {
+  Null
+  True
+  False
+  I64
+  F64
+  Str
+  Binary
+  ContainerType
+  DeleteOnce
+  DeleteSeq
+  DeltaInt
+  LoroValue
+  MarkStart
+  TreeMove
+  ListMove
+  ListSet
+  RawTreeMove
+  Future(Byte)
+}
+pub fn LoroOpValueKind::from_u8(Byte) -> Self
+pub fn LoroOpValueKind::to_u8(Self) -> Byte
+pub impl Eq for LoroOpValueKind
+pub impl Show for LoroOpValueKind
+
+pub struct LoroRawTreeMove {
+  subject_peer_idx : Int
+  subject_cnt : Int
+  position_idx : Int
+  is_parent_null : Bool
+  parent_peer_idx : Int
+  parent_cnt : Int
+}
+pub impl Show for LoroRawTreeMove
+
+pub enum LoroValueKind {
+  Null
+  True
+  False
+  I64
+  F64
+  Str
+  Binary
+  List
+  Map
+  ContainerType
+}
+pub fn LoroValueKind::from_u8(Byte) -> Self?
+pub fn LoroValueKind::to_u8(Self) -> Byte
+pub impl Eq for LoroValueKind
+pub impl Show for LoroValueKind
+
+pub struct LoroValueReader {
+  bytes : Bytes
+  mut pos : Int
+}
+pub fn LoroValueReader::new(Bytes) -> Self
+pub fn LoroValueReader::read_binary(Self) -> Result[Bytes, @types.LoroError]
+pub fn LoroValueReader::read_f64(Self) -> Result[Double, @types.LoroError]
+pub fn LoroValueReader::read_i32(Self) -> Result[Int, @types.LoroError]
+pub fn LoroValueReader::read_i64(Self) -> Result[Int64, @types.LoroError]
+pub fn LoroValueReader::read_mark(Self, Array[String], @types.ID) -> Result[LoroMarkStart, @types.LoroError]
+pub fn LoroValueReader::read_op_value(Self, LoroOpValueKind, Array[String], @types.ID) -> Result[LoroOpValue, @types.LoroError]
+pub fn LoroValueReader::read_raw_bytes(Self, Int) -> Result[Bytes, @types.LoroError]
+pub fn LoroValueReader::read_raw_tree_move(Self) -> Result[LoroRawTreeMove, @types.LoroError]
+pub fn LoroValueReader::read_str(Self) -> Result[String, @types.LoroError]
+pub fn LoroValueReader::read_tree_move(Self) -> Result[LoroEncodedTreeMove, @types.LoroError]
+pub fn LoroValueReader::read_u8(Self) -> Result[Byte, @types.LoroError]
+pub fn LoroValueReader::read_usize(Self) -> Result[Int, @types.LoroError]
+pub fn LoroValueReader::read_value_content(Self, LoroValueKind, Array[String], @types.ID) -> Result[@types.LoroValue, @types.LoroError]
+pub fn LoroValueReader::read_value_type_and_content(Self, Array[String], @types.ID) -> Result[@types.LoroValue, @types.LoroError]
+pub fn LoroValueReader::remaining(Self) -> Int
+pub fn LoroValueReader::remaining_bytes(Self) -> Bytes
+
+pub struct LoroValueWriter {
+  buf : @buffer.Buffer
+}
+pub fn LoroValueWriter::new() -> Self
+pub fn LoroValueWriter::to_bytes(Self) -> Bytes
+pub fn LoroValueWriter::write_binary(Self, Bytes) -> Unit
+pub fn LoroValueWriter::write_f64(Self, Double) -> Unit
+pub fn LoroValueWriter::write_i32(Self, Int) -> Unit
+pub fn LoroValueWriter::write_i64(Self, Int64) -> Unit
+pub fn LoroValueWriter::write_mark(Self, LoroMarkStart, Array[String], @types.ID) -> Result[Unit, @types.LoroError]
+pub fn LoroValueWriter::write_op_value(Self, LoroOpValue, Array[String], @types.ID) -> Result[Byte, @types.LoroError]
+pub fn LoroValueWriter::write_raw_bytes(Self, Bytes) -> Unit
+pub fn LoroValueWriter::write_raw_tree_move(Self, LoroRawTreeMove) -> Unit
+pub fn LoroValueWriter::write_str(Self, String) -> Unit
+pub fn LoroValueWriter::write_tree_move(Self, LoroEncodedTreeMove) -> Unit
+pub fn LoroValueWriter::write_u8(Self, Byte) -> Unit
+pub fn LoroValueWriter::write_usize(Self, Int) -> Unit
+pub fn LoroValueWriter::write_value_content(Self, @types.LoroValue, LoroValueKind, Array[String], @types.ID) -> Result[Unit, @types.LoroError]
+pub fn LoroValueWriter::write_value_type_and_content(Self, @types.LoroValue, Array[String], @types.ID) -> Result[Unit, @types.LoroError]
+
+pub struct PostcardReader {
+  bytes : Bytes
+  mut pos : Int
+}
+pub fn PostcardReader::new(Bytes) -> Self
+pub fn PostcardReader::read_bool(Self) -> Result[Bool, @types.LoroError]
+pub fn PostcardReader::read_byte(Self) -> Result[Byte, @types.LoroError]
+pub fn PostcardReader::read_bytes(Self, Int) -> Result[Bytes, @types.LoroError]
+pub fn PostcardReader::read_bytes_with_len(Self) -> Result[Bytes, @types.LoroError]
+pub fn PostcardReader::read_container_id(Self) -> Result[@types.ContainerID, @types.LoroError]
+pub fn PostcardReader::read_container_type(Self) -> Result[@types.ContainerType, @types.LoroError]
+pub fn PostcardReader::read_f64(Self) -> Result[Double, @types.LoroError]
+pub fn PostcardReader::read_loro_value(Self) -> Result[@types.LoroValue, @types.LoroError]
+pub fn PostcardReader::read_map_loro_value(Self) -> Result[Map[String, @types.LoroValue], @types.LoroError]
+pub fn PostcardReader::read_option_container_id(Self) -> Result[@types.ContainerID?, @types.LoroError]
+pub fn PostcardReader::read_option_i64(Self) -> Result[Int64?, @types.LoroError]
+pub fn PostcardReader::read_string(Self) -> Result[String, @types.LoroError]
+pub fn PostcardReader::read_u8(Self) -> Result[Byte, @types.LoroError]
+pub fn PostcardReader::read_varint_i32(Self) -> Result[Int, @types.LoroError]
+pub fn PostcardReader::read_varint_i64(Self) -> Result[Int64, @types.LoroError]
+pub fn PostcardReader::read_varint_isize(Self) -> Result[Int, @types.LoroError]
+pub fn PostcardReader::read_varint_u32(Self) -> Result[UInt, @types.LoroError]
+pub fn PostcardReader::read_varint_u64(Self) -> Result[UInt64, @types.LoroError]
+pub fn PostcardReader::read_varint_usize(Self) -> Result[Int, @types.LoroError]
+pub fn PostcardReader::read_vec_bytes(Self) -> Result[Array[Bytes], @types.LoroError]
+pub fn PostcardReader::read_vec_loro_value(Self) -> Result[Array[@types.LoroValue], @types.LoroError]
+pub fn PostcardReader::read_vec_string(Self) -> Result[Array[String], @types.LoroError]
+pub fn PostcardReader::remaining(Self) -> Int
+pub fn PostcardReader::remaining_bytes(Self) -> Bytes
+pub fn PostcardReader::try_read_varint_isize(Self) -> Result[Int?, @types.LoroError]
+pub fn PostcardReader::try_read_varint_usize(Self) -> Result[Int?, @types.LoroError]
+
+pub struct PostcardWriter {
+  buf : @buffer.Buffer
+}
+pub fn PostcardWriter::new() -> Self
+pub fn PostcardWriter::to_bytes(Self) -> Bytes
+pub fn PostcardWriter::write_bool(Self, Bool) -> Unit
+pub fn PostcardWriter::write_byte(Self, Byte) -> Unit
+pub fn PostcardWriter::write_bytes(Self, Bytes) -> Unit
+pub fn PostcardWriter::write_bytes_with_len(Self, Bytes) -> Unit
+pub fn PostcardWriter::write_container_id(Self, @types.ContainerID) -> Unit
+pub fn PostcardWriter::write_container_type(Self, @types.ContainerType) -> Unit
+pub fn PostcardWriter::write_f64(Self, Double) -> Unit
+pub fn PostcardWriter::write_loro_value(Self, @types.LoroValue) -> Unit
+pub fn PostcardWriter::write_map_loro_value(Self, Map[String, @types.LoroValue]) -> Unit
+pub fn PostcardWriter::write_option_container_id(Self, @types.ContainerID?) -> Unit
+pub fn PostcardWriter::write_option_i64(Self, Int64?) -> Unit
+pub fn PostcardWriter::write_string(Self, String) -> Unit
+pub fn PostcardWriter::write_u8(Self, Byte) -> Unit
+pub fn PostcardWriter::write_varint_i32(Self, Int) -> Unit
+pub fn PostcardWriter::write_varint_i64(Self, Int64) -> Unit
+pub fn PostcardWriter::write_varint_isize(Self, Int) -> Unit
+pub fn PostcardWriter::write_varint_u32(Self, UInt) -> Unit
+pub fn PostcardWriter::write_varint_u64(Self, UInt64) -> Unit
+pub fn PostcardWriter::write_varint_usize(Self, Int) -> Unit
+pub fn PostcardWriter::write_vec_bytes(Self, Array[Bytes]) -> Unit
+pub fn PostcardWriter::write_vec_loro_value(Self, Array[@types.LoroValue]) -> Unit
+pub fn PostcardWriter::write_vec_string(Self, Array[String]) -> Unit
+
+pub struct Reader {
+  bytes : Bytes
+  mut pos : Int
+}
+pub fn Reader::new(Bytes) -> Self
+pub fn Reader::read_byte(Self) -> Result[Byte, @types.LoroError]
+pub fn Reader::read_bytes(Self, Int) -> Result[Bytes, @types.LoroError]
+pub fn Reader::remaining(Self) -> Int
+
+// Type aliases
+
+// Traits
+

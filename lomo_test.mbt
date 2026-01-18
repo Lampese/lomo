@@ -1610,3 +1610,20 @@ test "concurrent text delete merge" {
     fail("unexpected delete merge")
   }
 }
+
+///|
+test "counter increments" {
+  let doc = LoroDoc::new()
+  let counter = doc.get_counter("count")
+  let ensure_ok = (res : Result[Unit, @types.LoroError]) => match res {
+    Ok(_) => ()
+    Err(err) => fail("\{err}")
+  }
+  ensure_ok(doc.counter_add(counter, 1.5))
+  ensure_ok(doc.counter_inc(counter, 2))
+  let value = match doc.counter_value(counter) {
+    Ok(v) => v
+    Err(err) => fail("\{err}")
+  }
+  guard value == 3.5 else { fail("unexpected counter value") }
+}

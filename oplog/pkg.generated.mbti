@@ -1,0 +1,119 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo/oplog"
+
+import(
+  "Lampese/lomo/op"
+  "Lampese/lomo/types"
+)
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct AppDag {
+  nodes : Map[UInt64, Array[AppDagNode]]
+  frontiers : @types.Frontiers
+  vv : @types.VersionVector
+}
+pub fn AppDag::calc_unknown_lamport_change(Self, Change) -> Result[Change, @types.LoroError]
+pub fn AppDag::contains(Self, @types.ID) -> Bool
+pub fn AppDag::frontiers(Self) -> @types.Frontiers
+pub fn AppDag::get_lamport(Self, @types.ID) -> UInt?
+pub fn AppDag::get_node(Self, @types.ID) -> AppDagNode?
+pub fn AppDag::handle_deps_break_points(Self, @types.Frontiers, UInt64) -> Unit
+pub fn AppDag::handle_new_change(Self, Change) -> Unit
+pub fn AppDag::is_empty(Self) -> Bool
+pub fn AppDag::new() -> Self
+pub fn AppDag::vv(Self) -> @types.VersionVector
+
+pub struct AppDagNode {
+  peer : UInt64
+  cnt : Int
+  lamport : UInt
+  deps : @types.Frontiers
+  len : Int
+  has_succ : Bool
+}
+pub fn AppDagNode::contains_id(Self, @types.ID) -> Bool
+pub fn AppDagNode::ctr_end(Self) -> Int
+pub fn AppDagNode::id_end(Self) -> @types.ID
+pub fn AppDagNode::id_last(Self) -> @types.ID
+pub fn AppDagNode::id_start(Self) -> @types.ID
+pub fn AppDagNode::lamport_at(Self, @types.ID) -> UInt
+pub fn AppDagNode::slice(Self, Int, Int) -> Self
+pub impl Show for AppDagNode
+
+pub struct Change {
+  id : @types.ID
+  lamport : UInt
+  deps : @types.Frontiers
+  timestamp : Int64
+  commit_msg : String?
+  origin : String?
+  ops : Array[@op.Op]
+}
+pub fn Change::commit_msg(Self) -> String?
+pub fn Change::ctr_span(Self) -> @types.CounterSpan
+pub fn Change::deps(Self) -> @types.Frontiers
+pub fn Change::deps_on_self(Self) -> Bool
+pub fn Change::id(Self) -> @types.ID
+pub fn Change::id_end(Self) -> @types.ID
+pub fn Change::id_last(Self) -> @types.ID
+pub fn Change::id_span(Self) -> @types.IdSpan
+pub fn Change::is_empty(Self) -> Bool
+pub fn Change::lamport(Self) -> UInt
+pub fn Change::len(Self) -> Int
+pub fn Change::new(Array[@op.Op], @types.Frontiers, @types.ID, UInt, Int64) -> Self
+pub fn Change::new_with_meta(Array[@op.Op], @types.Frontiers, @types.ID, UInt, Int64, String?, String?) -> Self
+pub fn Change::ops(Self) -> Array[@op.Op]
+pub fn Change::origin(Self) -> String?
+pub fn Change::peer(Self) -> UInt64
+pub fn Change::slice(Self, Int, Int) -> Self
+pub fn Change::timestamp(Self) -> Int64
+pub impl Show for Change
+
+pub enum ChangeState {
+  Applied
+  CanApplyDirectly
+  AwaitingMissingDependency(@types.ID)
+}
+pub impl Show for ChangeState
+
+pub struct OpLog {
+  dag : AppDag
+  changes : Map[@types.ID, Change]
+  change_order : Array[@types.ID]
+  pending_changes : PendingChanges
+}
+pub fn OpLog::all_changes(Self) -> Array[Change]
+pub fn OpLog::apply_change_from_remote(Self, PendingChange) -> Unit
+pub fn OpLog::dag(Self) -> AppDag
+pub fn OpLog::extend_pending_changes_with_unknown_lamport(Self, Array[Change]) -> Result[Unit, @types.LoroError]
+pub fn OpLog::frontiers(Self) -> @types.Frontiers
+pub fn OpLog::frontiers_to_vv(Self, @types.Frontiers) -> Result[@types.VersionVector, @types.LoroError]
+pub fn OpLog::get_change(Self, @types.ID) -> Change?
+pub fn OpLog::import_local_change(Self, Change) -> Result[Unit, @types.LoroError]
+pub fn OpLog::insert_new_change(Self, Change, Bool) -> Unit
+pub fn OpLog::is_empty(Self) -> Bool
+pub fn OpLog::new() -> Self
+pub fn OpLog::trim_the_known_part_of_change(Self, Change) -> Change?
+pub fn OpLog::try_apply_pending(Self, Array[@types.ID]) -> Unit
+pub fn OpLog::vv(Self) -> @types.VersionVector
+pub fn OpLog::vv_to_frontiers(Self, @types.VersionVector) -> @types.Frontiers
+
+pub enum PendingChange {
+  Unknown(Change)
+  Known(Change)
+}
+pub impl Show for PendingChange
+
+pub struct PendingChanges {
+  changes : Map[UInt64, Map[Int, Array[PendingChange]]]
+}
+pub fn PendingChanges::new() -> Self
+
+// Type aliases
+
+// Traits
+

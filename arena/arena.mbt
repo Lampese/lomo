@@ -51,6 +51,8 @@ pub fn SharedArena::to_persisted_op(
     @op.RawOpContent::List(list_op) =>
       @op.InnerContent::List(raw_list_to_inner(self, list_op))
     @op.RawOpContent::Tree(tree_op) => @op.InnerContent::Tree(tree_op)
+    @op.RawOpContent::Counter(counter_op) =>
+      @op.InnerContent::Counter(counter_op)
   }
   let id = op.id()
   @op.Op::new(id.counter, op.container(), content)

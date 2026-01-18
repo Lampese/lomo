@@ -28,6 +28,7 @@ pub fn DecodedChange::len(self : DecodedChange) -> Int {
 pub struct DecodedSnapshot {
   state : @state.DocState
   changes : Array[DecodedChange]
+  needs_replay : Bool
 } derive(Show)
 
 ///|

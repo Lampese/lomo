@@ -38,6 +38,9 @@ const TAG_CONTAINER_MOVABLE_LIST : Byte = b'\x05'
 const TAG_CONTAINER_UNKNOWN : Byte = b'\x06'
 
 ///|
+const TAG_CONTAINER_COUNTER : Byte = b'\x07'
+
+///|
 const TAG_VALUE_NULL : Byte = b'\x00'
 
 ///|
@@ -111,6 +114,9 @@ const TAG_OP_LIST : Byte = b'\x01'
 
 ///|
 const TAG_OP_TREE : Byte = b'\x02'
+
+///|
+const TAG_OP_COUNTER : Byte = b'\x03'
 
 ///|
 const TAG_TREE_CREATE : Byte = b'\x00'

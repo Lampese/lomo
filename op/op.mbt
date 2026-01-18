@@ -4,6 +4,7 @@ pub(all) enum InnerContent {
   List(InnerListOp)
   Map(MapSet)
   Tree(TreeOp)
+  Counter(CounterOp)
   RichText
   MovableList
   Unknown
@@ -61,6 +62,7 @@ pub fn InnerContent::content_len(self : InnerContent) -> Int {
     List(op) => op.content_len()
     Map(_set) => 1
     Tree(_op) => 1
+    Counter(_op) => 1
     _ => 1
   }
 }
@@ -74,6 +76,7 @@ pub fn InnerContent::slice(
   match self {
     List(op) => InnerContent::List(op.slice(from, to))
     Tree(op) => InnerContent::Tree(op)
+    Counter(op) => InnerContent::Counter(op)
     other => other
   }
 }

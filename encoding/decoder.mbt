@@ -31,6 +31,24 @@ pub fn decode_payload(
       Ok(snapshot) => Ok(DecodedPayload::Snapshot(snapshot))
       Err(err) => Err(err)
     }
+  } else if magic == LORO_MAGIC {
+    let (mode, body) = match parse_loro_header(bytes, true) {
+      Ok(v) => v
+      Err(err) => return Err(err)
+    }
+    if mode == LoroEncodeMode::FastUpdates {
+      match decode_loro_updates_body(body) {
+        Ok(changes) => Ok(DecodedPayload::Updates(changes))
+        Err(err) => Err(err)
+      }
+    } else if mode == LoroEncodeMode::FastSnapshot {
+      match decode_loro_snapshot_body(body) {
+        Ok(snapshot) => Ok(DecodedPayload::Snapshot(snapshot))
+        Err(err) => Err(err)
+      }
+    } else {
+      Err(@types.LoroError::DecodeError("unsupported loro payload"))
+    }
   } else {
     Err(@types.LoroError::DecodeError("invalid magic"))
   }
@@ -153,6 +171,12 @@ fn decode_snapshot_after_magic(
         Err(err) => return Err(err)
       }
       state.set_tree_state(id, tree_state)
+    } else if container_type == @types.ContainerType::Counter {
+      let counter_state = match read_counter_state(reader) {
+        Ok(value) => value
+        Err(err) => return Err(err)
+      }
+      state.set_counter_state(id, counter_state)
     } else {
       return Err(@types.LoroError::DecodeError("unsupported container type"))
     }
@@ -168,7 +192,7 @@ fn decode_snapshot_after_magic(
       Err(err) => return Err(err)
     }
   }
-  Ok(DecodedSnapshot::{ state, changes })
+  Ok(DecodedSnapshot::{ state, changes, needs_replay: false })
 }
 
 ///|
@@ -389,11 +413,19 @@ fn read_movable_list_state(
       Ok(value) => value
       Err(err) => return Err(err)
     }
+    let elem_id = match read_id_lp(reader) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    let last_set_id = match read_id_lp(reader) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
     let value = match read_loro_value(reader) {
       Ok(value) => value
       Err(err) => return Err(err)
     }
-    list_state.append_elem(value, id)
+    list_state.append_elem_full(value, id, elem_id, last_set_id)
   }
   Ok(list_state)
 }
@@ -538,6 +570,12 @@ fn read_decoded_op(reader : Reader) -> Result[DecodedOp, @types.LoroError] {
       Err(err) => return Err(err)
     }
     @op.RawOpContent::Tree(tree_op)
+  } else if tag == TAG_OP_COUNTER {
+    let counter_op = match read_counter_op(reader) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    @op.RawOpContent::Counter(counter_op)
   } else {
     return Err(@types.LoroError::DecodeError("invalid op tag"))
   }
@@ -682,6 +720,8 @@ fn read_container_type(
     Ok(@types.ContainerType::RichText)
   } else if tag == TAG_CONTAINER_MOVABLE_LIST {
     Ok(@types.ContainerType::MovableList)
+  } else if tag == TAG_CONTAINER_COUNTER {
+    Ok(@types.ContainerType::Counter)
   } else if tag == TAG_CONTAINER_UNKNOWN {
     let raw = match reader.read_byte() {
       Ok(value) => value
@@ -691,6 +731,38 @@ fn read_container_type(
   } else {
     Err(@types.LoroError::DecodeError("invalid container type tag"))
   }
+}
+
+///|
+fn read_counter_state(
+  reader : Reader,
+) -> Result[@state.CounterState, @types.LoroError] {
+  let value = match read_loro_value(reader) {
+    Ok(v) => v
+    Err(err) => return Err(err)
+  }
+  let delta = match value {
+    @types.LoroValue::I64(v) => v.to_double()
+    @types.LoroValue::F64(v) => v
+    _ => return Err(@types.LoroError::DecodeError("invalid counter value"))
+  }
+  let state = @state.CounterState::new()
+  state.apply(delta)
+  Ok(state)
+}
+
+///|
+fn read_counter_op(reader : Reader) -> Result[@op.CounterOp, @types.LoroError] {
+  let value = match read_loro_value(reader) {
+    Ok(v) => v
+    Err(err) => return Err(err)
+  }
+  let delta = match value {
+    @types.LoroValue::I64(v) => v.to_double()
+    @types.LoroValue::F64(v) => v
+    _ => return Err(@types.LoroError::DecodeError("invalid counter delta"))
+  }
+  Ok(@op.CounterOp::new(delta))
 }
 
 ///|

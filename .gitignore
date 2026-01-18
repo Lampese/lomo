@@ -1,3 +1,5 @@
 target
 _build
 Agents.md
+.mooncakes
+node_modules

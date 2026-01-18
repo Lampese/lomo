@@ -1,0 +1,302 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo"
+
+import(
+  "Lampese/lomo/arena"
+  "Lampese/lomo/container"
+  "Lampese/lomo/op"
+  "Lampese/lomo/oplog"
+  "Lampese/lomo/state"
+  "Lampese/lomo/types"
+)
+
+// Values
+pub fn alloc_id_and_lamport(LoroDoc, Int) -> (@types.ID, UInt)
+
+pub let loro_fixture_shallow_snapshot : Bytes
+
+pub let loro_fixture_snapshot : Bytes
+
+pub let loro_fixture_updates : Bytes
+
+// Errors
+
+// Types and methods
+pub struct CommitMeta {
+  mut message : String?
+  mut origin : String?
+  mut timestamp : Int64
+}
+pub fn CommitMeta::message(Self) -> String?
+pub fn CommitMeta::new(Int64) -> Self
+pub fn CommitMeta::origin(Self) -> String?
+pub fn CommitMeta::set_message(Self, String?) -> Unit
+pub fn CommitMeta::set_origin(Self, String?) -> Unit
+pub fn CommitMeta::set_timestamp(Self, Int64) -> Unit
+pub fn CommitMeta::timestamp(Self) -> Int64
+pub impl Show for CommitMeta
+
+pub struct ContainerEvent {
+  container : @types.ContainerID
+  diff : Array[@types.LoroValue]
+}
+pub fn ContainerEvent::container(Self) -> @types.ContainerID
+pub fn ContainerEvent::diff(Self) -> Array[@types.LoroValue]
+pub impl Show for ContainerEvent
+
+pub enum EphemeralEventTrigger {
+  Local
+  Import
+  Timeout
+}
+pub impl Eq for EphemeralEventTrigger
+pub impl Show for EphemeralEventTrigger
+
+type EphemeralLocalEntry
+
+type EphemeralRecord
+
+pub struct EphemeralStore {
+  timeout_ms : UInt64
+  mut next_sub_id : Int
+  mut states : Map[String, EphemeralRecord]
+  mut local_subs : Array[EphemeralLocalEntry]
+  mut subs : Array[EphemeralSubscriberEntry]
+}
+pub fn EphemeralStore::apply(Self, Bytes) -> Result[Unit, @types.LoroError]
+pub fn EphemeralStore::delete(Self, String) -> Unit
+pub fn EphemeralStore::encode(Self, String) -> Bytes
+pub fn EphemeralStore::encode_all(Self) -> Bytes
+pub fn EphemeralStore::get(Self, String) -> @types.LoroValue?
+pub fn EphemeralStore::get_all_states(Self) -> Map[String, @types.LoroValue]
+pub fn EphemeralStore::keys(Self) -> Array[String]
+pub fn EphemeralStore::new(UInt64) -> Self
+pub fn EphemeralStore::remove_outdated(Self) -> Unit
+pub fn EphemeralStore::set(Self, String, @types.LoroValue) -> Unit
+pub fn EphemeralStore::subscribe(Self, (EphemeralStoreEvent) -> Bool) -> EphemeralSubscription
+pub fn EphemeralStore::subscribe_local_updates(Self, (Bytes) -> Bool) -> EphemeralSubscription
+
+pub struct EphemeralStoreEvent {
+  by : EphemeralEventTrigger
+  added : Array[String]
+  updated : Array[String]
+  removed : Array[String]
+}
+pub fn EphemeralStoreEvent::added(Self) -> Array[String]
+pub fn EphemeralStoreEvent::by(Self) -> EphemeralEventTrigger
+pub fn EphemeralStoreEvent::removed(Self) -> Array[String]
+pub fn EphemeralStoreEvent::updated(Self) -> Array[String]
+pub impl Show for EphemeralStoreEvent
+
+type EphemeralSubscriberEntry
+
+pub struct EphemeralSubscription {
+  store : EphemeralStore
+  id : Int
+}
+pub fn EphemeralSubscription::unsubscribe(Self) -> Unit
+
+pub struct EventBatch {
+  events : Array[ContainerEvent]
+  is_local : Bool
+  peer : UInt64
+}
+pub fn EventBatch::events(Self) -> Array[ContainerEvent]
+pub fn EventBatch::is_local(Self) -> Bool
+pub fn EventBatch::peer(Self) -> UInt64
+pub impl Show for EventBatch
+
+type LocalUpdateEntry
+
+pub struct LoroDoc {
+  mut oplog : @oplog.OpLog
+  mut state : @state.DocState
+  mut arena : @arena.SharedArena
+  mut text_style : @types.StyleConfigMap
+  mut peer : UInt64
+  mut counter : Int
+  mut lamport : UInt
+  mut next_sub_id : Int
+  mut root_subs : Array[SubscriberEntry]
+  mut container_subs : Map[@types.ContainerID, Array[SubscriberEntry]]
+  mut local_update_subs : Array[LocalUpdateEntry]
+  mut peer_id_subs : Array[PeerIdEntry]
+  mut pre_commit_subs : Array[PreCommitEntry]
+  mut next_commit_msg : String?
+  mut next_commit_origin : String?
+  mut txn_active : Bool
+  mut txn_ops : Array[@op.Op]
+  mut txn_deps : @types.Frontiers?
+  mut txn_base_id : @types.ID?
+  mut txn_base_lamport : UInt
+}
+pub fn LoroDoc::apply_list_op(Self, @container.ListHandler, @op.ListOp) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::apply_local_content_with_id(Self, @types.ID, UInt, @types.ContainerID, @op.RawOpContent) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::apply_map_set(Self, @container.MapHandler, String, @types.LoroValue?) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::apply_text_op(Self, @container.TextHandler, @op.ListOp) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::apply_tree_op(Self, @container.TreeHandler, @op.TreeOp) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::begin_transaction(Self) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::checkout(Self, @types.Frontiers) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::commit_transaction(Self) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::config_default_text_style(Self, @types.StyleConfig?) -> Unit
+pub fn LoroDoc::config_text_style(Self, @types.StyleConfigMap) -> Unit
+pub fn LoroDoc::container_list(Self, @types.ContainerID) -> @container.ListHandler
+pub fn LoroDoc::container_map(Self, @types.ContainerID) -> @container.MapHandler
+pub fn LoroDoc::container_movable_list(Self, @types.ContainerID) -> @container.MovableListHandler
+pub fn LoroDoc::container_text(Self, @types.ContainerID) -> @container.TextHandler
+pub fn LoroDoc::container_tree(Self, @types.ContainerID) -> @container.TreeHandler
+pub fn LoroDoc::counter_add(Self, @container.CounterHandler, Double) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::counter_inc(Self, @container.CounterHandler, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::counter_value(Self, @container.CounterHandler) -> Result[Double, @types.LoroError]
+pub fn LoroDoc::export_bytes(Self, @types.ExportMode) -> Result[Bytes, @types.LoroError]
+pub fn LoroDoc::export_from(Self, @types.VersionVector?) -> Result[Bytes, @types.LoroError]
+pub fn LoroDoc::export_loro_snapshot(Self) -> Result[Bytes, @types.LoroError]
+pub fn LoroDoc::export_loro_updates(Self) -> Result[Bytes, @types.LoroError]
+pub fn LoroDoc::export_updates(Self) -> Result[Bytes, @types.LoroError]
+pub fn LoroDoc::export_updates_from(Self, @types.VersionVector?) -> Result[Bytes, @types.LoroError]
+pub fn LoroDoc::fork_at(Self, @types.Frontiers) -> Result[Self, @types.LoroError]
+pub fn LoroDoc::frontiers_to_vv(Self, @types.Frontiers) -> Result[@types.VersionVector, @types.LoroError]
+pub fn LoroDoc::get_counter(Self, String) -> @container.CounterHandler
+pub fn LoroDoc::get_deep_value(Self) -> @types.LoroValue
+pub fn LoroDoc::get_list(Self, String) -> @container.ListHandler
+pub fn LoroDoc::get_map(Self, String) -> @container.MapHandler
+pub fn LoroDoc::get_movable_list(Self, String) -> @container.MovableListHandler
+pub fn LoroDoc::get_text(Self, String) -> @container.TextHandler
+pub fn LoroDoc::get_tree(Self, String) -> @container.TreeHandler
+pub fn LoroDoc::import_bytes(Self, Bytes) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::import_updates(Self, Bytes) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::in_transaction(Self) -> Bool
+pub fn LoroDoc::list_delete(Self, @container.ListHandler, Int, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::list_diff(Self, @container.ListHandler) -> Result[Array[@types.LoroValue], @types.LoroError]
+pub fn LoroDoc::list_get_or_create_container(Self, @container.ListHandler, Int, @types.ContainerType) -> Result[@types.ContainerID, @types.LoroError]
+pub fn LoroDoc::list_insert(Self, @container.ListHandler, Int, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::list_insert_container(Self, @container.ListHandler, Int, @types.ContainerType) -> Result[@types.ContainerID, @types.LoroError]
+pub fn LoroDoc::list_push(Self, @container.ListHandler, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::list_push_container(Self, @container.ListHandler, @types.ContainerType) -> Result[@types.ContainerID, @types.LoroError]
+pub fn LoroDoc::list_set(Self, @container.ListHandler, Int, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::map_delete(Self, @container.MapHandler, String) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::map_diff(Self, @container.MapHandler) -> Result[Array[@types.LoroValue], @types.LoroError]
+pub fn LoroDoc::map_get_or_create_container(Self, @container.MapHandler, String, @types.ContainerType) -> Result[@types.ContainerID, @types.LoroError]
+pub fn LoroDoc::map_id(Self, @container.MapHandler) -> @types.ContainerID
+pub fn LoroDoc::map_insert_container(Self, @container.MapHandler, String, @types.ContainerType) -> Result[@types.ContainerID, @types.LoroError]
+pub fn LoroDoc::map_set(Self, @container.MapHandler, String, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::movable_list_delete(Self, @container.MovableListHandler, Int, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::movable_list_diff(Self, @container.MovableListHandler) -> Result[Array[@types.LoroValue], @types.LoroError]
+pub fn LoroDoc::movable_list_insert(Self, @container.MovableListHandler, Int, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::movable_list_move(Self, @container.MovableListHandler, Int, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::movable_list_push(Self, @container.MovableListHandler, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::movable_list_set(Self, @container.MovableListHandler, Int, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::new() -> Self
+pub fn LoroDoc::oplog_frontiers(Self) -> @types.Frontiers
+pub fn LoroDoc::oplog_vv(Self) -> @types.VersionVector
+pub fn LoroDoc::set_next_commit_message(Self, String?) -> Unit
+pub fn LoroDoc::set_next_commit_origin(Self, String?) -> Unit
+pub fn LoroDoc::set_peer_id(Self, UInt64) -> Unit
+pub fn LoroDoc::subscribe(Self, @types.ContainerID, (EventBatch) -> Bool) -> Subscription
+pub fn LoroDoc::subscribe_local_update(Self, (Bytes) -> Bool) -> Subscription
+pub fn LoroDoc::subscribe_peer_id_change(Self, (UInt64) -> Bool) -> Subscription
+pub fn LoroDoc::subscribe_pre_commit(Self, (CommitMeta) -> Bool) -> Subscription
+pub fn LoroDoc::subscribe_root(Self, (EventBatch) -> Bool) -> Subscription
+pub fn LoroDoc::text_delete(Self, @container.TextHandler, Int, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_delete_utf16(Self, @container.TextHandler, Int, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_delete_utf8(Self, @container.TextHandler, Int, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_diff(Self, @container.TextHandler) -> Result[Array[@types.LoroValue], @types.LoroError]
+pub fn LoroDoc::text_get_richtext_value(Self, @container.TextHandler) -> Result[@types.LoroValue, @types.LoroError]
+pub fn LoroDoc::text_insert(Self, @container.TextHandler, Int, String) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_insert_utf16(Self, @container.TextHandler, Int, String) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_insert_utf8(Self, @container.TextHandler, Int, String) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_mark(Self, @container.TextHandler, Int, Int, String, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_mark_utf16(Self, @container.TextHandler, Int, Int, String, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_mark_utf8(Self, @container.TextHandler, Int, Int, String, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_slice(Self, @container.TextHandler, Int, Int) -> Result[String, @types.LoroError]
+pub fn LoroDoc::text_slice_utf16(Self, @container.TextHandler, Int, Int) -> Result[String, @types.LoroError]
+pub fn LoroDoc::text_slice_utf8(Self, @container.TextHandler, Int, Int) -> Result[String, @types.LoroError]
+pub fn LoroDoc::text_to_delta(Self, @container.TextHandler) -> Result[Array[@types.LoroValue], @types.LoroError]
+pub fn LoroDoc::text_to_string(Self, @container.TextHandler) -> Result[String, @types.LoroError]
+pub fn LoroDoc::text_unmark(Self, @container.TextHandler, Int, Int, String) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_unmark_utf16(Self, @container.TextHandler, Int, Int, String) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::text_unmark_utf8(Self, @container.TextHandler, Int, Int, String) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::tree_create(Self, @container.TreeHandler, @types.TreeID?) -> Result[@types.TreeID, @types.LoroError]
+pub fn LoroDoc::tree_create_at(Self, @container.TreeHandler, @types.TreeID?, Int) -> Result[@types.TreeID, @types.LoroError]
+pub fn LoroDoc::tree_delete(Self, @container.TreeHandler, @types.TreeID) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::tree_get_meta(Self, @types.TreeID) -> @container.MapHandler
+pub fn LoroDoc::tree_get_value(Self, @container.TreeHandler) -> Result[@types.LoroValue, @types.LoroError]
+pub fn LoroDoc::tree_get_value_with_meta(Self, @container.TreeHandler) -> Result[@types.LoroValue, @types.LoroError]
+pub fn LoroDoc::tree_move(Self, @container.TreeHandler, @types.TreeID, @types.TreeID?) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::tree_move_after(Self, @container.TreeHandler, @types.TreeID, @types.TreeID) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::tree_move_before(Self, @container.TreeHandler, @types.TreeID, @types.TreeID) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::tree_move_to(Self, @container.TreeHandler, @types.TreeID, @types.TreeID?, Int) -> Result[Unit, @types.LoroError]
+pub fn LoroDoc::version(Self) -> @types.VersionVector
+pub fn LoroDoc::vv_to_frontiers(Self, @types.VersionVector) -> @types.Frontiers
+
+type PeerIdEntry
+
+type PreCommitEntry
+
+type SubscriberEntry
+
+pub struct Subscription {
+  doc : LoroDoc
+  id : Int
+}
+pub fn Subscription::unsubscribe(Self) -> Unit
+
+pub struct UndoManager {
+  doc : LoroDoc
+  peer_id : UInt64
+  undo_stack : Array[UndoStep]
+  redo_stack : Array[UndoStep]
+  mut seen_changes : Int
+  tracking_state : @state.DocState
+  ignore_change_ids : Array[@types.ID]
+  exclude_origin_prefixes : Array[String]
+  mut max_undo_steps : Int
+  mut merge_interval_ms : Int64
+  mut group_active : Bool
+  mut group_ops : Array[UndoOp]
+}
+pub fn UndoManager::add_exclude_origin_prefix(Self, String) -> Unit
+pub fn UndoManager::can_redo(Self) -> Bool
+pub fn UndoManager::can_undo(Self) -> Bool
+pub fn UndoManager::clear(Self) -> Unit
+pub fn UndoManager::group_end(Self) -> Unit
+pub fn UndoManager::group_start(Self) -> Result[Unit, @types.LoroError]
+pub fn UndoManager::new(LoroDoc) -> Self
+pub fn UndoManager::peer(Self) -> UInt64
+pub fn UndoManager::record_new_checkpoint(Self) -> Result[Unit, @types.LoroError]
+pub fn UndoManager::redo(Self) -> Result[Bool, @types.LoroError]
+pub fn UndoManager::redo_count(Self) -> Int
+pub fn UndoManager::set_max_undo_steps(Self, Int) -> Unit
+pub fn UndoManager::set_merge_interval(Self, Int64) -> Unit
+pub fn UndoManager::top_redo_value(Self) -> @types.LoroValue?
+pub fn UndoManager::top_undo_value(Self) -> @types.LoroValue?
+pub fn UndoManager::undo(Self) -> Result[Bool, @types.LoroError]
+pub fn UndoManager::undo_count(Self) -> Int
+
+pub struct UndoOp {
+  container : @types.ContainerID
+  content : @op.RawOpContent
+}
+pub fn UndoOp::content_len(Self) -> Int
+pub impl Show for UndoOp
+
+pub struct UndoStep {
+  ops : Array[UndoOp]
+}
+pub impl Show for UndoStep
+
+// Type aliases
+pub type EphemeralSubscriber = (EphemeralStoreEvent) -> Bool
+
+pub type LocalEphemeralCallback = (Bytes) -> Bool
+
+pub type LocalUpdateCallback = (Bytes) -> Bool
+
+pub type PeerIdUpdateCallback = (UInt64) -> Bool
+
+pub type PreCommitCallback = (CommitMeta) -> Bool
+
+pub type Subscriber = (EventBatch) -> Bool
+
+// Traits
+

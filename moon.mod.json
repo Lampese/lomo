@@ -1,4 +1,7 @@
 {
   "name": "Lampese/lomo",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "deps": {
+    "moonbitlang/async": "0.16.1"
+  }
 }

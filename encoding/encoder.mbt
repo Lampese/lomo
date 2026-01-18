@@ -58,6 +58,14 @@ pub fn encode_snapshot(
           Ok(_) => ()
           Err(err) => return Err(err)
         }
+      (
+        @types.ContainerType::Counter,
+        @state.ContainerState::CounterState(counter_state),
+      ) =>
+        match write_counter_state(buf, counter_state) {
+          Ok(_) => ()
+          Err(err) => return Err(err)
+        }
       _ => return Err(@types.LoroError::EncodeError("container type mismatch"))
     }
   }
@@ -171,6 +179,8 @@ fn write_movable_list_state(
   write_uvarint(buf, elems.length().to_uint64())
   for elem in elems {
     write_id_full(buf, elem.id)
+    write_id_lp(buf, elem.elem_id)
+    write_id_lp(buf, elem.last_set_id)
     match write_loro_value(buf, elem.v) {
       Ok(_) => ()
       Err(err) => return Err(err)
@@ -247,6 +257,14 @@ fn write_tree_state(
 }
 
 ///|
+fn write_counter_state(
+  buf : @buffer.Buffer,
+  counter_state : @state.CounterState,
+) -> Result[Unit, @types.LoroError] {
+  write_loro_value(buf, @types.LoroValue::F64(counter_state.value()))
+}
+
+///|
 fn encode_change(
   buf : @buffer.Buffer,
   arena : @arena.SharedArena,
@@ -305,6 +323,13 @@ fn encode_op(
     @op.InnerContent::Tree(tree_op) => {
       buf.write_byte(TAG_OP_TREE)
       match write_tree_op(buf, tree_op) {
+        Ok(_) => ()
+        Err(err) => return Err(err)
+      }
+    }
+    @op.InnerContent::Counter(counter_op) => {
+      buf.write_byte(TAG_OP_COUNTER)
+      match write_counter_op(buf, counter_op) {
         Ok(_) => ()
         Err(err) => return Err(err)
       }
@@ -375,6 +400,14 @@ fn write_tree_op(
 }
 
 ///|
+fn write_counter_op(
+  buf : @buffer.Buffer,
+  op : @op.CounterOp,
+) -> Result[Unit, @types.LoroError] {
+  write_loro_value(buf, @types.LoroValue::F64(op.delta()))
+}
+
+///|
 fn inner_to_raw_list(
   arena : @arena.SharedArena,
   inner : @op.InnerListOp,
@@ -432,6 +465,7 @@ fn write_container_type(
     @types.ContainerType::RichText => buf.write_byte(TAG_CONTAINER_RICH_TEXT)
     @types.ContainerType::MovableList =>
       buf.write_byte(TAG_CONTAINER_MOVABLE_LIST)
+    @types.ContainerType::Counter => buf.write_byte(TAG_CONTAINER_COUNTER)
     @types.ContainerType::Unknown(tag) => {
       buf.write_byte(TAG_CONTAINER_UNKNOWN)
       buf.write_byte(tag)

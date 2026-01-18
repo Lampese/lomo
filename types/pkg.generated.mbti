@@ -1,0 +1,235 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo/types"
+
+// Values
+
+// Errors
+pub(all) suberror LoroError {
+  InvalidPeerID
+  InvalidContainer(String)
+  DecodeError(String)
+  EncodeError(String)
+  MissingDependency(String)
+  InternalError(String)
+  Unsupported(String)
+  StyleConfigMissing(String)
+  FrontiersNotIncluded(ID)
+  TreeNodeNotFound(TreeID)
+  TreeParentNotFound(TreeID)
+  UndoGroupAlreadyStarted
+  UndoGroupNotStarted
+  UndoWithDifferentPeerId(expected~ : UInt64, actual~ : UInt64)
+}
+pub impl Eq for LoroError
+pub impl Show for LoroError
+
+// Types and methods
+pub(all) enum ContainerID {
+  Root(name~ : String, container_type~ : ContainerType)
+  Normal(peer~ : UInt64, counter~ : Int, container_type~ : ContainerType)
+}
+pub fn ContainerID::container_type(Self) -> ContainerType
+pub fn ContainerID::is_root(Self) -> Bool
+pub fn ContainerID::normal(UInt64, Int, ContainerType) -> Self
+pub fn ContainerID::root(String, ContainerType) -> Self
+pub impl Eq for ContainerID
+pub impl Hash for ContainerID
+pub impl Show for ContainerID
+
+pub(all) enum ContainerType {
+  Map
+  List
+  Text
+  Tree
+  RichText
+  MovableList
+  Counter
+  Unknown(Byte)
+}
+pub impl Eq for ContainerType
+pub impl Hash for ContainerType
+pub impl Show for ContainerType
+
+pub struct CounterSpan {
+  start : Int
+  end : Int
+}
+pub fn CounterSpan::contains(Self, Int) -> Bool
+pub fn CounterSpan::len(Self) -> Int
+pub fn CounterSpan::new(Int, Int) -> Self
+pub fn CounterSpan::normalize(Self) -> Self
+pub impl Eq for CounterSpan
+pub impl Show for CounterSpan
+
+pub(all) enum ExpandType {
+  Before
+  After
+  Both
+  NoExpand
+}
+pub fn ExpandType::expand_after(Self) -> Bool
+pub fn ExpandType::expand_before(Self) -> Bool
+pub fn ExpandType::from_info(Int) -> Self
+pub fn ExpandType::reverse(Self) -> Self
+pub fn ExpandType::to_info(Self) -> Int
+pub impl Eq for ExpandType
+pub impl Show for ExpandType
+
+pub(all) enum ExportMode {
+  Snapshot
+  Updates(VersionVector?)
+}
+pub fn ExportMode::snapshot() -> Self
+pub fn ExportMode::updates(VersionVector?) -> Self
+
+pub struct FractionalIndex {
+  bytes : Bytes
+}
+pub fn FractionalIndex::bytes(Self) -> Bytes
+pub fn FractionalIndex::compare(Self, Self) -> Int
+pub fn FractionalIndex::default() -> Self
+pub fn FractionalIndex::from_bytes(Bytes) -> Self
+pub fn FractionalIndex::new(Self?, Self?) -> Self?
+pub fn FractionalIndex::new_after(Self) -> Self
+pub fn FractionalIndex::new_before(Self) -> Self
+pub fn FractionalIndex::new_between(Self, Self) -> Self?
+pub impl Show for FractionalIndex
+
+pub struct Frontiers {
+  mut ids : Array[ID]
+}
+pub fn Frontiers::as_single(Self) -> ID?
+pub fn Frontiers::as_view(Self) -> ArrayView[ID]
+pub fn Frontiers::clone(Self) -> Self
+pub fn Frontiers::contains(Self, ID) -> Bool
+pub fn Frontiers::from_array(Array[ID]) -> Self
+pub fn Frontiers::from_id(ID) -> Self
+pub fn Frontiers::is_empty(Self) -> Bool
+pub fn Frontiers::iter(Self) -> ArrayView[ID]
+pub fn Frontiers::len(Self) -> Int
+pub fn Frontiers::new() -> Self
+pub fn Frontiers::push(Self, ID) -> Unit
+pub fn Frontiers::remove(Self, ID) -> Unit
+pub fn Frontiers::update_on_new_change(Self, ID, Self) -> Unit
+pub impl Show for Frontiers
+
+pub struct ID {
+  peer : UInt64
+  counter : Int
+}
+pub fn ID::inc(Self, Int) -> Self
+pub fn ID::new(UInt64, Int) -> Self
+pub impl Eq for ID
+pub impl Hash for ID
+pub impl Show for ID
+
+pub struct IdFull {
+  peer : UInt64
+  lamport : UInt
+  counter : Int
+}
+pub fn IdFull::new(UInt64, Int, UInt) -> Self
+pub fn IdFull::to_id(Self) -> ID
+pub fn IdFull::to_id_lp(Self) -> IdLp
+pub impl Eq for IdFull
+pub impl Hash for IdFull
+pub impl Show for IdFull
+
+pub struct IdLp {
+  lamport : UInt
+  peer : UInt64
+}
+pub fn IdLp::new(UInt64, UInt) -> Self
+pub impl Eq for IdLp
+pub impl Hash for IdLp
+pub impl Show for IdLp
+
+pub struct IdSpan {
+  peer : UInt64
+  counter : CounterSpan
+}
+pub fn IdSpan::new(UInt64, Int, Int) -> Self
+pub impl Eq for IdSpan
+pub impl Show for IdSpan
+
+pub(all) enum LoroValue {
+  Null
+  Bool(Bool)
+  I64(Int64)
+  F64(Double)
+  String(String)
+  Bytes(Bytes)
+  List(Array[LoroValue])
+  Map(Map[String, LoroValue])
+  Container(ContainerID)
+}
+pub fn LoroValue::into_container(Self) -> ContainerID?
+pub fn LoroValue::is_container(Self) -> Bool
+pub impl Show for LoroValue
+
+pub struct StyleConfig {
+  expand : ExpandType
+}
+pub fn StyleConfig::new() -> Self
+pub fn StyleConfig::with_expand(ExpandType) -> Self
+pub impl Eq for StyleConfig
+pub impl Show for StyleConfig
+
+pub struct StyleConfigMap {
+  map : Map[String, StyleConfig]
+  mut default_style : StyleConfig?
+}
+pub fn StyleConfigMap::default_rich_text_config() -> Self
+pub fn StyleConfigMap::get(Self, String) -> StyleConfig?
+pub fn StyleConfigMap::insert(Self, String, StyleConfig) -> Unit
+pub fn StyleConfigMap::new() -> Self
+pub fn StyleConfigMap::set_default(Self, StyleConfig?) -> Unit
+pub fn StyleConfigMap::style_info(Self, String, Bool) -> Int?
+pub impl Show for StyleConfigMap
+
+pub(all) struct TreeID {
+  peer : UInt64
+  counter : Int
+}
+pub fn TreeID::delete_root() -> Self
+pub fn TreeID::from_id(ID) -> Self
+pub fn TreeID::id(Self) -> ID
+pub fn TreeID::is_deleted_root(Self) -> Bool
+pub fn TreeID::meta_container(Self) -> ContainerID
+pub fn TreeID::new(UInt64, Int) -> Self
+pub impl Eq for TreeID
+pub impl Hash for TreeID
+pub impl Show for TreeID
+
+pub(all) enum TreeParentId {
+  Root
+  Deleted
+  Node(TreeID)
+}
+pub fn TreeParentId::deleted() -> Self
+pub fn TreeParentId::from_option(TreeID?) -> Self
+pub fn TreeParentId::to_option(Self) -> TreeID?
+pub impl Eq for TreeParentId
+pub impl Show for TreeParentId
+
+pub struct VersionVector {
+  entries : Map[UInt64, Int]
+}
+pub fn VersionVector::extend_to_include_last_id(Self, ID) -> Unit
+pub fn VersionVector::get(Self, UInt64) -> Int
+pub fn VersionVector::includes_id(Self, ID) -> Bool
+pub fn VersionVector::is_empty(Self) -> Bool
+pub fn VersionVector::merge(Self, Self) -> Unit
+pub fn VersionVector::new() -> Self
+pub fn VersionVector::set(Self, UInt64, Int) -> Unit
+pub fn VersionVector::to_map(Self) -> Map[UInt64, Int]
+
+// Type aliases
+pub type Counter = Int
+
+pub type Lamport = UInt
+
+pub type PeerID = UInt64
+
+// Traits
+

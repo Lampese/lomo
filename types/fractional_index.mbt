@@ -52,7 +52,27 @@ pub fn FractionalIndex::compare(
   self : FractionalIndex,
   other : FractionalIndex,
 ) -> Int {
-  self.bytes.compare(other.bytes)
+  let a = self.bytes
+  let b = other.bytes
+  let len_a = a.length()
+  let len_b = b.length()
+  let len = if len_a < len_b { len_a } else { len_b }
+  for i = 0; i < len; i = i + 1 {
+    let av = a[i].to_uint()
+    let bv = b[i].to_uint()
+    if av < bv {
+      return -1
+    } else if av > bv {
+      return 1
+    }
+  }
+  if len_a < len_b {
+    -1
+  } else if len_a > len_b {
+    1
+  } else {
+    0
+  }
 }
 
 ///|

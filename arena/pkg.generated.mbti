@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo/arena"
+
+import(
+  "Lampese/lomo/op"
+  "Lampese/lomo/types"
+)
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct SharedArena {
+  values : Array[@types.LoroValue]
+}
+pub fn SharedArena::alloc_values(Self, Array[@types.LoroValue]) -> @op.SliceRange
+pub fn SharedArena::get_values(Self, @op.SliceRange) -> Array[@types.LoroValue]
+pub fn SharedArena::new() -> Self
+pub fn SharedArena::to_persisted_op(Self, @op.RawOp) -> @op.Op
+
+// Type aliases
+
+// Traits
+

@@ -1,0 +1,216 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo/state"
+
+import(
+  "Lampese/lomo/arena"
+  "Lampese/lomo/op"
+  "Lampese/lomo/types"
+)
+
+// Values
+
+// Errors
+
+// Types and methods
+pub enum ContainerState {
+  MapState(MapState)
+  ListState(ListState)
+  TextState(TextState)
+  MovableListState(MovableListState)
+  TreeState(TreeState)
+  CounterState(CounterState)
+}
+pub impl Show for ContainerState
+
+pub struct CounterState {
+  mut value : Double
+}
+pub fn CounterState::apply(Self, Double) -> Unit
+pub fn CounterState::new() -> Self
+pub fn CounterState::to_value(Self) -> @types.LoroValue
+pub fn CounterState::value(Self) -> Double
+pub impl Show for CounterState
+
+pub struct DocState {
+  containers : Map[@types.ContainerID, ContainerState]
+}
+pub fn DocState::apply_op(Self, @arena.SharedArena, @op.Op, @types.ID, UInt) -> Result[Unit, @types.LoroError]
+pub fn DocState::apply_raw_op(Self, @arena.SharedArena, @op.RawOp) -> Result[Unit, @types.LoroError]
+pub fn DocState::container_items(Self) -> Array[(@types.ContainerID, ContainerState)]
+pub fn DocState::counter_value(Self, @types.ContainerID) -> Result[Double, @types.LoroError]
+pub fn DocState::deep_value_for_container(Self, @types.ContainerID) -> @types.LoroValue
+pub fn DocState::get_deep_value(Self) -> @types.LoroValue
+pub fn DocState::get_or_create(Self, @types.ContainerID, @types.ContainerType) -> ContainerState
+pub fn DocState::list_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn DocState::list_len(Self, @types.ContainerID) -> Result[Int, @types.LoroError]
+pub fn DocState::list_value_at(Self, @types.ContainerID, Int) -> Result[@types.LoroValue?, @types.LoroError]
+pub fn DocState::map_get(Self, @types.ContainerID, String) -> Result[@types.LoroValue?, @types.LoroError]
+pub fn DocState::map_value(Self, @types.ContainerID) -> @types.LoroValue?
+pub fn DocState::movable_list_elem_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdLp, @types.LoroError]
+pub fn DocState::movable_list_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn DocState::movable_list_len(Self, @types.ContainerID) -> Result[Int, @types.LoroError]
+pub fn DocState::movable_list_value_at(Self, @types.ContainerID, Int) -> Result[@types.LoroValue?, @types.LoroError]
+pub fn DocState::new() -> Self
+pub fn DocState::set_container_state(Self, @types.ContainerID, ContainerState) -> Unit
+pub fn DocState::set_counter_state(Self, @types.ContainerID, CounterState) -> Unit
+pub fn DocState::set_list_state(Self, @types.ContainerID, ListState) -> Unit
+pub fn DocState::set_map_state(Self, @types.ContainerID, MapState) -> Unit
+pub fn DocState::set_movable_list_state(Self, @types.ContainerID, MovableListState) -> Unit
+pub fn DocState::set_text_state(Self, @types.ContainerID, TextState) -> Unit
+pub fn DocState::set_tree_state(Self, @types.ContainerID, TreeState) -> Unit
+pub fn DocState::text_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn DocState::text_len(Self, @types.ContainerID) -> Result[Int, @types.LoroError]
+pub fn DocState::text_list_pos_to_text_pos(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
+pub fn DocState::text_plain_text(Self, @types.ContainerID) -> Result[String, @types.LoroError]
+pub fn DocState::text_richtext_value(Self, @types.ContainerID) -> Result[@types.LoroValue, @types.LoroError]
+pub fn DocState::text_slice(Self, @types.ContainerID, Int, Int) -> Result[String, @types.LoroError]
+pub fn DocState::text_styles(Self, @types.ContainerID) -> Result[Array[StyleSpan], @types.LoroError]
+pub fn DocState::text_text_pos_to_list_pos(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
+pub fn DocState::text_unicode_index_from_utf16(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
+pub fn DocState::text_unicode_index_from_utf8(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
+pub fn DocState::tree_children(Self, @types.ContainerID, @types.TreeParentId) -> Result[Array[@types.TreeID], @types.LoroError]
+pub fn DocState::tree_node(Self, @types.ContainerID, @types.TreeID) -> Result[TreeNode, @types.LoroError]
+pub impl Show for DocState
+
+pub struct Elem {
+  v : @types.LoroValue
+  id : @types.IdFull
+}
+pub impl Show for Elem
+
+pub struct ListState {
+  list : Array[Elem]
+}
+pub fn ListState::append_elem(Self, @types.LoroValue, @types.IdFull) -> Unit
+pub fn ListState::apply_inner_op(Self, @arena.SharedArena, @op.InnerListOp, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn ListState::delete_by_id(Self, @op.DeleteSpanWithId) -> Result[Unit, @types.LoroError]
+pub fn ListState::delete_range(Self, Int, Int) -> Result[Unit, @types.LoroError]
+pub fn ListState::elems(Self) -> Array[Elem]
+pub fn ListState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn ListState::insert(Self, Int, @types.LoroValue, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn ListState::insert_batch(Self, Int, Array[@types.LoroValue], @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn ListState::len(Self) -> Int
+pub fn ListState::move_by_id(Self, @types.IdLp, Int) -> Result[Unit, @types.LoroError]
+pub fn ListState::new() -> Self
+pub fn ListState::set_by_id(Self, @types.IdLp, @types.LoroValue) -> Result[Unit, @types.LoroError]
+pub fn ListState::to_value(Self) -> @types.LoroValue
+pub fn ListState::to_values(Self) -> Array[@types.LoroValue]
+pub fn ListState::value_at(Self, Int) -> Result[@types.LoroValue?, @types.LoroError]
+pub impl Show for ListState
+
+pub struct MapState {
+  entries : Map[String, MapValue]
+  child_containers : Map[@types.ContainerID, String]
+}
+pub fn MapState::delete(Self, String, @types.IdFull) -> Unit
+pub fn MapState::entry_items(Self) -> Array[(String, MapValue)]
+pub fn MapState::get(Self, String) -> @types.LoroValue?
+pub fn MapState::insert_entry(Self, String, MapValue) -> Unit
+pub fn MapState::new() -> Self
+pub fn MapState::set(Self, String, @types.LoroValue, @types.IdFull) -> Unit
+pub fn MapState::to_value(Self) -> @types.LoroValue
+pub fn MapState::update_entry(Self, String, MapValue) -> Unit
+pub impl Show for MapState
+
+pub struct MapValue {
+  value : @types.LoroValue?
+  lamport : UInt
+  peer : UInt64
+}
+pub fn MapValue::new(@types.LoroValue?, UInt, UInt64) -> Self
+pub impl Show for MapValue
+
+pub struct MovableElem {
+  v : @types.LoroValue
+  id : @types.IdFull
+  elem_id : @types.IdLp
+  last_set_id : @types.IdLp
+}
+pub impl Show for MovableElem
+
+pub struct MovableListState {
+  list : Array[MovableElem]
+}
+pub fn MovableListState::append_elem(Self, @types.LoroValue, @types.IdFull) -> Unit
+pub fn MovableListState::append_elem_full(Self, @types.LoroValue, @types.IdFull, @types.IdLp, @types.IdLp) -> Unit
+pub fn MovableListState::apply_inner_op(Self, @arena.SharedArena, @op.InnerListOp, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn MovableListState::elem_id_at(Self, Int) -> Result[@types.IdLp, @types.LoroError]
+pub fn MovableListState::elems(Self) -> Array[MovableElem]
+pub fn MovableListState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn MovableListState::len(Self) -> Int
+pub fn MovableListState::new() -> Self
+pub fn MovableListState::to_value(Self) -> @types.LoroValue
+pub fn MovableListState::value_at(Self, Int) -> Result[@types.LoroValue?, @types.LoroError]
+pub impl Show for MovableListState
+
+pub struct StyleSpan {
+  start : Int
+  end : Int
+  key : String
+  value : @types.LoroValue
+  expand : @types.ExpandType
+}
+pub fn StyleSpan::end(Self) -> Int
+pub fn StyleSpan::expand(Self) -> @types.ExpandType
+pub fn StyleSpan::key(Self) -> String
+pub fn StyleSpan::new(Int, Int, String, @types.LoroValue, @types.ExpandType) -> Self
+pub fn StyleSpan::start(Self) -> Int
+pub fn StyleSpan::value(Self) -> @types.LoroValue
+pub impl Show for StyleSpan
+
+pub struct TextElem {
+  ch : Char
+  id : @types.IdFull
+}
+pub impl Show for TextElem
+
+pub struct TextState {
+  elems : Array[TextElem]
+  styles : Array[StyleSpan]
+}
+pub fn TextState::append_elem(Self, Char, @types.IdFull) -> Unit
+pub fn TextState::append_style(Self, StyleSpan) -> Unit
+pub fn TextState::apply_inner_op(Self, @op.InnerListOp, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn TextState::delete(Self, Int, Int) -> Unit
+pub fn TextState::delete_by_id(Self, @op.DeleteSpanWithId) -> Unit
+pub fn TextState::elems(Self) -> Array[TextElem]
+pub fn TextState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn TextState::insert(Self, Int, String, @types.IdFull) -> Unit
+pub fn TextState::len(Self) -> Int
+pub fn TextState::new() -> Self
+pub fn TextState::plain_text(Self) -> String
+pub fn TextState::slice(Self, Int, Int) -> Result[String, @types.LoroError]
+pub fn TextState::styles(Self) -> Array[StyleSpan]
+pub fn TextState::to_richtext_value(Self) -> @types.LoroValue
+pub fn TextState::to_value(Self) -> @types.LoroValue
+pub fn TextState::unicode_index_from_utf16(Self, Int) -> Result[Int, @types.LoroError]
+pub fn TextState::unicode_index_from_utf8(Self, Int) -> Result[Int, @types.LoroError]
+pub impl Show for TextState
+
+pub struct TreeNode {
+  id : @types.TreeID
+  parent : @types.TreeParentId
+  position : @types.FractionalIndex
+  last_id : @types.IdLp
+}
+pub fn TreeNode::new(@types.TreeID, @types.TreeParentId, @types.FractionalIndex, @types.IdLp) -> Self
+pub fn TreeNode::parent(Self) -> @types.TreeParentId
+pub fn TreeNode::position(Self) -> @types.FractionalIndex
+pub impl Show for TreeNode
+
+pub struct TreeState {
+  nodes : Map[@types.TreeID, TreeNode]
+}
+pub fn TreeState::apply_op(Self, @op.TreeOp, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn TreeState::children(Self, @types.TreeParentId) -> Array[@types.TreeID]?
+pub fn TreeState::get_node(Self, @types.TreeID) -> TreeNode?
+pub fn TreeState::new() -> Self
+pub fn TreeState::nodes(Self) -> Array[TreeNode]
+pub fn TreeState::roots(Self) -> Array[@types.TreeID]
+pub fn TreeState::set_node(Self, TreeNode) -> Unit
+pub impl Show for TreeState
+
+// Type aliases
+
+// Traits
+

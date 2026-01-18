@@ -508,6 +508,10 @@ fn inverse_ops_for_persisted_op(
       inverse_list_inner_op(state, container, inner, base_id, style_map)
     @op.InnerContent::Tree(tree_op) =>
       inverse_tree_op(state, container, tree_op)
+    @op.InnerContent::Counter(counter_op) => {
+      let undo = @op.CounterOp::new(-counter_op.delta())
+      Ok([UndoOp::{ container, content: @op.RawOpContent::Counter(undo) }])
+    }
     _ => Err(@types.LoroError::Unsupported("undo op not supported"))
   }
 }
@@ -537,6 +541,10 @@ fn inverse_ops_for_raw_op(
       inverse_list_raw_op(state, container, list_op, base_id, style_map)
     @op.RawOpContent::Tree(tree_op) =>
       inverse_tree_op(state, container, tree_op)
+    @op.RawOpContent::Counter(counter_op) => {
+      let undo = @op.CounterOp::new(-counter_op.delta())
+      Ok([UndoOp::{ container, content: @op.RawOpContent::Counter(undo) }])
+    }
   }
 }
 
@@ -623,7 +631,15 @@ fn inverse_insert_for_delete(
   }
   let container_type = container.container_type()
   if is_text_container(container_type) {
-    let text = match state.text_slice(container, start, end) {
+    let text_start = match state.text_list_pos_to_text_pos(container, start) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    let text_end = match state.text_list_pos_to_text_pos(container, end) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    let text = match state.text_slice(container, text_start, text_end) {
       Ok(value) => value
       Err(err) => return Err(err)
     }
@@ -731,6 +747,14 @@ fn inverse_style(
   if !is_text_container(container_type) {
     return Err(@types.LoroError::Unsupported("style undo not supported"))
   }
+  let text_start = match state.text_list_pos_to_text_pos(container, start) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let text_end = match state.text_list_pos_to_text_pos(container, end) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
   let styles = match state.text_styles(container) {
     Ok(value) => value
     Err(err) => return Err(err)
@@ -743,10 +767,20 @@ fn inverse_style(
     Some(value) => value
     None => return Err(@types.LoroError::StyleConfigMissing(key))
   }
-  let segments = style_segments(styles, key, start, end)
+  let segments = style_segments(styles, key, text_start, text_end)
   let ops : Array[UndoOp] = []
   for seg in segments {
     let (seg_start, seg_end, seg_value) = seg
+    let seg_list_start = match
+      state.text_text_pos_to_list_pos(container, seg_start) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    let seg_list_end = match
+      state.text_text_pos_to_list_pos(container, seg_end) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
     match seg_value.value {
       Some(v) => {
         let info = match seg_value.expand {
@@ -754,8 +788,8 @@ fn inverse_style(
           None => info_mark
         }
         let op = @op.ListOp::StyleStart(
-          start=seg_start,
-          end=seg_end,
+          start=seg_list_start,
+          end=seg_list_end,
           key~,
           info~,
           value=v,
@@ -764,8 +798,8 @@ fn inverse_style(
       }
       None => {
         let op = @op.ListOp::StyleStart(
-          start=seg_start,
-          end=seg_end,
+          start=seg_list_start,
+          end=seg_list_end,
           key~,
           info=info_unmark,
           value=@types.LoroValue::Null,
@@ -886,11 +920,11 @@ fn movable_list_index_by_id(
     Err(err) => return Err(err)
   }
   for i = 0; i < len; i = i + 1 {
-    let id_full = match state.movable_list_id_at(container, i) {
+    let elem = match state.movable_list_elem_id_at(container, i) {
       Ok(value) => value
       Err(err) => return Err(err)
     }
-    if id_full.to_id_lp() == elem_id {
+    if elem == elem_id {
       return Ok(i)
     }
   }

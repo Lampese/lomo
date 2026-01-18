@@ -1,0 +1,8 @@
+{
+  "is_main": true,
+  "import": [
+    "Lampese/lomo",
+    "Lampese/lomo/types",
+    "Lampese/lomo/container"
+  ]
+}

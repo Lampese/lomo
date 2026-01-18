@@ -63,6 +63,31 @@ fn idlp_newer(a : @types.IdLp, b : @types.IdLp) -> Bool {
 }
 
 ///|
+fn compare_last_id(a : @types.IdLp, b : @types.IdLp) -> Int {
+  if a.lamport > b.lamport {
+    -1
+  } else if a.lamport < b.lamport {
+    1
+  } else if a.peer > b.peer {
+    -1
+  } else if a.peer < b.peer {
+    1
+  } else {
+    0
+  }
+}
+
+///|
+fn compare_tree_nodes(a : TreeNode, b : TreeNode) -> Int {
+  let pos_cmp = a.position.compare(b.position)
+  if pos_cmp != 0 {
+    pos_cmp
+  } else {
+    compare_last_id(a.last_id, b.last_id)
+  }
+}
+
+///|
 fn TreeState::parent_exists(
   self : TreeState,
   parent : @types.TreeParentId,
@@ -182,7 +207,7 @@ fn TreeState::children_nodes(
   // Simple in-place sort by fractional index.
   for i = 0; i < out.length(); i = i + 1 {
     for j = i + 1; j < out.length(); j = j + 1 {
-      if out[j].position.compare(out[i].position) < 0 {
+      if compare_tree_nodes(out[j], out[i]) < 0 {
         let tmp = out[i]
         out[i] = out[j]
         out[j] = tmp

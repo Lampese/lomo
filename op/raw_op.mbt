@@ -4,6 +4,7 @@ pub(all) enum RawOpContent {
   Map(MapSet)
   List(ListOp)
   Tree(TreeOp)
+  Counter(CounterOp)
 } derive(Show)
 
 ///|
@@ -12,6 +13,7 @@ pub fn RawOpContent::content_len(self : RawOpContent) -> Int {
     Map(_) => 1
     List(list_op) => list_op.content_len()
     Tree(_op) => 1
+    Counter(_op) => 1
   }
 }
 

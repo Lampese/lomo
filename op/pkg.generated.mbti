@@ -1,0 +1,187 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo/op"
+
+import(
+  "Lampese/lomo/types"
+)
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct CounterOp {
+  delta : Double
+}
+pub fn CounterOp::delta(Self) -> Double
+pub fn CounterOp::new(Double) -> Self
+pub impl Show for CounterOp
+
+pub struct DeleteSpan {
+  pos : Int
+  signed_len : Int
+}
+pub fn DeleteSpan::bidirectional(Self) -> Bool
+pub fn DeleteSpan::direction(Self) -> Int
+pub fn DeleteSpan::end(Self) -> Int
+pub fn DeleteSpan::is_mergeable(Self, Self) -> Bool
+pub fn DeleteSpan::is_reversed(Self) -> Bool
+pub fn DeleteSpan::last(Self) -> Int
+pub fn DeleteSpan::len(Self) -> Int
+pub fn DeleteSpan::merge(Self, Self) -> Self
+pub fn DeleteSpan::new(Int, Int) -> Self
+pub fn DeleteSpan::next_pos(Self) -> Int
+pub fn DeleteSpan::pos(Self) -> Int
+pub fn DeleteSpan::prev_pos(Self) -> Int
+pub fn DeleteSpan::signed_len(Self) -> Int
+pub fn DeleteSpan::slice(Self, Int, Int) -> Self
+pub fn DeleteSpan::start(Self) -> Int
+pub impl Eq for DeleteSpan
+pub impl Show for DeleteSpan
+
+pub struct DeleteSpanWithId {
+  id_start : @types.ID
+  span : DeleteSpan
+}
+pub fn DeleteSpanWithId::content_len(Self) -> Int
+pub fn DeleteSpanWithId::end(Self) -> Int
+pub fn DeleteSpanWithId::id_end(Self) -> @types.ID
+pub fn DeleteSpanWithId::id_last(Self) -> @types.ID
+pub fn DeleteSpanWithId::id_start(Self) -> @types.ID
+pub fn DeleteSpanWithId::is_mergeable(Self, Self) -> Bool
+pub fn DeleteSpanWithId::is_reversed(Self) -> Bool
+pub fn DeleteSpanWithId::last(Self) -> Int
+pub fn DeleteSpanWithId::merge(Self, Self) -> Self
+pub fn DeleteSpanWithId::new(@types.ID, Int, Int) -> Self
+pub fn DeleteSpanWithId::slice(Self, Int, Int) -> Self
+pub fn DeleteSpanWithId::span(Self) -> DeleteSpan
+pub fn DeleteSpanWithId::start(Self) -> Int
+pub impl Eq for DeleteSpanWithId
+pub impl Show for DeleteSpanWithId
+
+pub(all) enum InnerContent {
+  List(InnerListOp)
+  Map(MapSet)
+  Tree(TreeOp)
+  Counter(CounterOp)
+  RichText
+  MovableList
+  Unknown
+}
+pub fn InnerContent::content_len(Self) -> Int
+pub fn InnerContent::slice(Self, Int, Int) -> Self
+pub impl Show for InnerContent
+
+pub(all) enum InnerListOp {
+  Insert(slice~ : SliceRange, pos~ : Int)
+  InsertText(str~ : String, unicode_start~ : Int, unicode_len~ : Int, pos~ : Int)
+  Delete(DeleteSpanWithId)
+  Move(from~ : Int, elem_id~ : @types.IdLp, to~ : Int)
+  Set(elem_id~ : @types.IdLp, value~ : @types.LoroValue)
+  StyleStart(start~ : Int, end~ : Int, key~ : String, info~ : Int, value~ : @types.LoroValue)
+  StyleEnd
+}
+pub fn InnerListOp::content_len(Self) -> Int
+pub fn InnerListOp::is_mergeable(Self, Self) -> Bool
+pub fn InnerListOp::merge(Self, Self) -> Self
+pub fn InnerListOp::slice(Self, Int, Int) -> Self
+pub impl Show for InnerListOp
+
+pub(all) enum ListOp {
+  Insert(slice~ : ListSlice, pos~ : Int)
+  Delete(DeleteSpanWithId)
+  Move(from~ : Int, to~ : Int, elem_id~ : @types.IdLp)
+  Set(elem_id~ : @types.IdLp, value~ : @types.LoroValue)
+  StyleStart(start~ : Int, end~ : Int, key~ : String, info~ : Int, value~ : @types.LoroValue)
+  StyleEnd
+}
+pub fn ListOp::content_len(Self) -> Int
+pub fn ListOp::is_mergeable(Self, Self) -> Bool
+pub fn ListOp::merge(Self, Self) -> Self
+pub fn ListOp::new_del(@types.ID, Int, Int) -> Self
+pub fn ListOp::slice(Self, Int, Int) -> Self
+pub impl Show for ListOp
+
+pub(all) enum ListSlice {
+  RawData(Array[@types.LoroValue])
+  RawStr(str~ : String, unicode_len~ : Int)
+}
+pub fn ListSlice::content_len(Self) -> Int
+pub fn ListSlice::from_str(String) -> Self
+pub fn ListSlice::is_mergeable(Self, Self) -> Bool
+pub fn ListSlice::slice(Self, Int, Int) -> Self
+pub impl Show for ListSlice
+
+pub struct MapSet {
+  key : String
+  value : @types.LoroValue?
+}
+pub fn MapSet::key(Self) -> String
+pub fn MapSet::new(String, @types.LoroValue?) -> Self
+pub fn MapSet::value(Self) -> @types.LoroValue?
+pub impl Show for MapSet
+
+pub struct Op {
+  counter : Int
+  container : @types.ContainerID
+  content : InnerContent
+}
+pub fn Op::container(Self) -> @types.ContainerID
+pub fn Op::content(Self) -> InnerContent
+pub fn Op::content_len(Self) -> Int
+pub fn Op::new(Int, @types.ContainerID, InnerContent) -> Self
+pub fn Op::slice(Self, Int, Int) -> Self
+pub impl Show for Op
+
+pub struct RawOp {
+  id : @types.ID
+  lamport : UInt
+  container : @types.ContainerID
+  content : RawOpContent
+}
+pub fn RawOp::container(Self) -> @types.ContainerID
+pub fn RawOp::content(Self) -> RawOpContent
+pub fn RawOp::id(Self) -> @types.ID
+pub fn RawOp::id_full(Self) -> @types.IdFull
+pub fn RawOp::lamport(Self) -> UInt
+pub fn RawOp::new(@types.ID, UInt, @types.ContainerID, RawOpContent) -> Self
+pub impl Show for RawOp
+
+pub(all) enum RawOpContent {
+  Map(MapSet)
+  List(ListOp)
+  Tree(TreeOp)
+  Counter(CounterOp)
+}
+pub fn RawOpContent::content_len(Self) -> Int
+pub impl Show for RawOpContent
+
+pub struct SliceRange {
+  start : UInt
+  end : UInt
+}
+pub fn SliceRange::end(Self) -> UInt
+pub fn SliceRange::is_mergeable(Self, Self) -> Bool
+pub fn SliceRange::is_unknown(Self) -> Bool
+pub fn SliceRange::len(Self) -> Int
+pub fn SliceRange::merge(Self, Self) -> Self
+pub fn SliceRange::new(UInt, UInt) -> Self
+pub fn SliceRange::new_unknown(UInt) -> Self
+pub fn SliceRange::slice(Self, Int, Int) -> Self
+pub fn SliceRange::start(Self) -> UInt
+pub impl Eq for SliceRange
+pub impl Show for SliceRange
+
+pub(all) enum TreeOp {
+  Create(target~ : @types.TreeID, parent~ : @types.TreeParentId, position~ : @types.FractionalIndex)
+  Move(target~ : @types.TreeID, parent~ : @types.TreeParentId, position~ : @types.FractionalIndex)
+  Delete(target~ : @types.TreeID)
+}
+pub fn TreeOp::content_len(Self) -> Int
+pub fn TreeOp::target(Self) -> @types.TreeID
+pub impl Show for TreeOp
+
+// Type aliases
+
+// Traits
+

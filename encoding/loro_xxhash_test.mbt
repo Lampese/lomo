@@ -1,0 +1,15 @@
+///|
+test "xxhash32 vectors" {
+  let empty : Bytes = b""
+  assert_eq(xxhash32(empty, 0U), 0x02CC5D05U)
+  assert_eq(xxhash32(empty, 0x4F524F4CU), 0xDC3BF95AU)
+  let single : Bytes = [0x00]
+  assert_eq(xxhash32(single, 0x4F524F4CU), 0xDAD9F666U)
+  let word : Bytes = b"loro"
+  assert_eq(xxhash32(word, 0x4F524F4CU), 0x74D321EAU)
+  let block : Bytes = [
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C,
+    0x0D, 0x0E, 0x0F,
+  ]
+  assert_eq(xxhash32(block, 0x4F524F4CU), 0x2EDAB25FU)
+}

@@ -7,6 +7,7 @@ pub(all) enum ContainerType {
   Tree
   RichText
   MovableList
+  Counter
   Unknown(Byte)
 } derive(Show, Eq, Hash)
 

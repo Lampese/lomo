@@ -1,0 +1,58 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Lampese/lomo/container"
+
+import(
+  "Lampese/lomo/types"
+)
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct CounterHandler {
+  id : @types.ContainerID
+}
+pub fn CounterHandler::id(Self) -> @types.ContainerID
+pub fn CounterHandler::new(@types.ContainerID) -> Self
+pub impl Show for CounterHandler
+
+pub struct ListHandler {
+  id : @types.ContainerID
+}
+pub fn ListHandler::id(Self) -> @types.ContainerID
+pub fn ListHandler::new(@types.ContainerID) -> Self
+pub impl Show for ListHandler
+
+pub struct MapHandler {
+  id : @types.ContainerID
+}
+pub fn MapHandler::id(Self) -> @types.ContainerID
+pub fn MapHandler::new(@types.ContainerID) -> Self
+pub impl Show for MapHandler
+
+pub struct MovableListHandler {
+  id : @types.ContainerID
+}
+pub fn MovableListHandler::id(Self) -> @types.ContainerID
+pub fn MovableListHandler::new(@types.ContainerID) -> Self
+pub impl Show for MovableListHandler
+
+pub struct TextHandler {
+  id : @types.ContainerID
+}
+pub fn TextHandler::id(Self) -> @types.ContainerID
+pub fn TextHandler::new(@types.ContainerID) -> Self
+pub impl Show for TextHandler
+
+pub struct TreeHandler {
+  id : @types.ContainerID
+}
+pub fn TreeHandler::id(Self) -> @types.ContainerID
+pub fn TreeHandler::new(@types.ContainerID) -> Self
+pub impl Show for TreeHandler
+
+// Type aliases
+
+// Traits
+

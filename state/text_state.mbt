@@ -584,6 +584,56 @@ fn TextState::apply_style(
 }
 
 ///|
+fn TextState::markers_before(self : TextState, pos : Int) -> Int {
+  let mut count = 0
+  for span in self.styles {
+    if span.start <= pos {
+      count = count + 1
+    }
+    if span.end <= pos {
+      count = count + 1
+    }
+  }
+  count
+}
+
+///|
+fn TextState::text_pos_to_list_pos(self : TextState, text_pos : Int) -> Int {
+  let max_pos = self.elems.length()
+  let mut pos = text_pos
+  if pos < 0 {
+    pos = 0
+  } else if pos > max_pos {
+    pos = max_pos
+  }
+  pos + self.markers_before(pos)
+}
+
+///|
+fn TextState::list_pos_to_text_pos(self : TextState, list_pos : Int) -> Int {
+  let max_pos = self.elems.length()
+  if list_pos <= 0 {
+    return 0
+  }
+  let max_list_pos = max_pos + self.markers_before(max_pos)
+  if list_pos >= max_list_pos {
+    return max_pos
+  }
+  let mut low = 0
+  let mut high = max_pos
+  while low < high {
+    let mid = (low + high + 1) / 2
+    let list_index = mid + self.markers_before(mid)
+    if list_index <= list_pos {
+      low = mid
+    } else {
+      high = mid - 1
+    }
+  }
+  low
+}
+
+///|
 pub fn TextState::apply_inner_op(
   self : TextState,
   op : @op.InnerListOp,
@@ -591,7 +641,8 @@ pub fn TextState::apply_inner_op(
 ) -> Result[Unit, @types.LoroError] {
   match op {
     @op.InnerListOp::InsertText(str~, unicode_len=_, pos~, unicode_start=_) => {
-      self.insert(pos, str, base_id)
+      let text_pos = self.list_pos_to_text_pos(pos)
+      self.insert(text_pos, str, base_id)
       Ok(())
     }
     @op.InnerListOp::Delete(span) => {
@@ -599,7 +650,9 @@ pub fn TextState::apply_inner_op(
       Ok(())
     }
     @op.InnerListOp::StyleStart(start~, end~, key~, info~, value~) => {
-      self.apply_style(start, end, key, value, info)
+      let text_start = self.list_pos_to_text_pos(start)
+      let text_end = self.list_pos_to_text_pos(end)
+      self.apply_style(text_start, text_end, key, value, info)
       Ok(())
     }
     @op.InnerListOp::StyleEnd => Ok(())
