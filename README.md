@@ -5,21 +5,7 @@ container semantics and deterministic merge behavior while keeping the core
 embeddable: you own networking and storage, Lomo owns merges, update encoding,
 undo, and presence primitives.
 
-## Goals
-
-- Loro-compatible containers and merge semantics in pure MoonBit.
-- Rust Loro FastUpdates/FastSnapshot binary compatibility (in progress).
-- Deterministic convergence with version-vector based sync.
-- Explicit APIs that fit server-side or embedded use.
-- Minimal dependencies and stable naming aligned with Loro.
-
-## Non-goals (for now)
-
-- Legacy Loro encodings (OutdatedRle/OutdatedSnapshot).
-- Cursor/jsonpath APIs and storage adapters.
-- Built-in networking or persistence.
-
-## Feature coverage (0.0.1)
+## Feature coverage
 
 - Containers: Map, List, Text, MovableList, Tree, Counter (including nested containers).
 - Text: UTF-8/UTF-16 insert/delete/mark/unmark, deltas, diffs.
@@ -28,13 +14,6 @@ undo, and presence primitives.
 - Undo/redo with grouping and origin-prefix filters.
 - Subscriptions: root/container/local update/peer id/pre-commit hooks.
 - Ephemeral presence store with encode/apply.
-
-## Sync model
-
-- Each document maintains a version vector (`doc.version()`).
-- Use `export_updates_from(Some(vv))` for incremental sync.
-- Use `export_bytes(@types.ExportMode::Snapshot)` to ship full state.
-- Apply with `import_updates` or `import_bytes`.
 
 ## Example: Local edits, merge, snapshot, undo
 
