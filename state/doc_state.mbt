@@ -487,6 +487,15 @@ pub fn DocState::text_unicode_index_from_utf16(
   match self.containers.get(id) {
     Some(ContainerState::TextState(text_state)) =>
       text_state.unicode_index_from_utf16(offset)
+    None => {
+      let container_type = id.container_type()
+      if container_type == @types.ContainerType::Text ||
+        container_type == @types.ContainerType::RichText {
+        Ok(0)
+      } else {
+        Err(@types.LoroError::InvalidContainer("text not found"))
+      }
+    }
     _ => Err(@types.LoroError::InvalidContainer("text not found"))
   }
 }
@@ -500,6 +509,15 @@ pub fn DocState::text_unicode_index_from_utf8(
   match self.containers.get(id) {
     Some(ContainerState::TextState(text_state)) =>
       text_state.unicode_index_from_utf8(offset)
+    None => {
+      let container_type = id.container_type()
+      if container_type == @types.ContainerType::Text ||
+        container_type == @types.ContainerType::RichText {
+        Ok(0)
+      } else {
+        Err(@types.LoroError::InvalidContainer("text not found"))
+      }
+    }
     _ => Err(@types.LoroError::InvalidContainer("text not found"))
   }
 }

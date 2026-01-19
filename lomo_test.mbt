@@ -796,6 +796,30 @@ test "text utf8/utf16 ranges" {
 }
 
 ///|
+test "text utf8/utf16 insert on empty" {
+  let doc = LoroDoc::new()
+  let text = doc.get_text("utf_empty16")
+  let ensure_ok = (res : Result[Unit, @types.LoroError]) => match res {
+    Ok(_) => ()
+    Err(err) => fail("\{err}")
+  }
+  ensure_ok(doc.text_insert_utf16(text, 0, "Hello"))
+  let plain = match doc.text_to_string(text) {
+    Ok(value) => value
+    Err(err) => fail("\{err}")
+  }
+  assert_eq(plain, "Hello")
+  let doc2 = LoroDoc::new()
+  let text2 = doc2.get_text("utf_empty8")
+  ensure_ok(doc2.text_insert_utf8(text2, 0, "World"))
+  let plain2 = match doc2.text_to_string(text2) {
+    Ok(value) => value
+    Err(err) => fail("\{err}")
+  }
+  assert_eq(plain2, "World")
+}
+
+///|
 test "text utf8/utf16 invalid offsets" {
   let doc = LoroDoc::new()
   let text = doc.get_text("utf_invalid")
