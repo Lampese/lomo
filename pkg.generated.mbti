@@ -13,6 +13,14 @@ import(
 // Values
 pub fn alloc_id_and_lamport(LoroDoc, Int) -> (@types.ID, UInt)
 
+pub let awareness_fixture_multi : Bytes
+
+pub let awareness_fixture_peer_v1 : Bytes
+
+pub let awareness_fixture_peer_v2 : Bytes
+
+pub let awareness_fixture_simple : Bytes
+
 pub let loro_fixture_shallow_snapshot : Bytes
 
 pub let loro_fixture_snapshot : Bytes

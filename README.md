@@ -100,7 +100,7 @@ let presence1 = EphemeralStore::new(15_000)
 let presence2 = EphemeralStore::new(15_000)
 
 presence1.set(
-  "user:alpha",
+  "1", // peer id as string
   @types.LoroValue::Map({ "cursor": @types.LoroValue::I64(12) }),
 )
 

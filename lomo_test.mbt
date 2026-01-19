@@ -200,17 +200,29 @@ test "subscribe root events" {
 ///|
 test "ephemeral store encode apply" {
   let store1 = EphemeralStore::new(1000)
-  store1.set("cursor", @types.LoroValue::I64(1))
-  let bytes = store1.encode("cursor")
+  store1.set("1", @types.LoroValue::I64(1))
+  let bytes = store1.encode("1")
   let store2 = EphemeralStore::new(1000)
   match store2.apply(bytes) {
     Ok(_) => ()
     Err(err) => fail("\{err}")
   }
-  match store2.get("cursor") {
+  match store2.get("1") {
     Some(@types.LoroValue::I64(1)) => ()
     _ => fail("missing cursor state")
   }
+}
+
+///|
+test "ephemeral store encode format" {
+  let store = EphemeralStore::new(1000)
+  store.set("1", @types.LoroValue::Map({ "x": @types.LoroValue::F64(1.5) }))
+  let bytes = store.encode("1")
+  let expected : Bytes = [
+    0x01, 0x01, 0x02, 0x06, 0x01, 0x01, 0x78, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0xF8, 0x3F,
+  ]
+  guard bytes == expected else { fail("awareness encode mismatch") }
 }
 
 ///|

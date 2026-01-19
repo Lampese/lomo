@@ -2,6 +2,160 @@
 const LZ4_FRAME_MAGIC : UInt = 0x184D2204U
 
 ///|
+const LZ4_FRAME_FLG : Byte = b'\x60'
+
+///|
+const LZ4_FRAME_BD : Byte = b'\x70'
+
+///|
+const LZ4_MAX_BLOCK_SIZE : Int = 4 * 1024 * 1024
+
+///|
+const LZ4_MIN_MATCH : Int = 4
+
+///|
+const LZ4_HASH_SIZE : Int = 1 << 16
+
+///|
+const LZ4_HASH_SEED : UInt = 0x9E3779B1U
+
+///|
+fn lz4_write_u32_le(buf : @buffer.Buffer, value : UInt) -> Unit {
+  buf.write_byte((value & 0xFFU).reinterpret_as_int().to_byte())
+  buf.write_byte(((value >> 8) & 0xFFU).reinterpret_as_int().to_byte())
+  buf.write_byte(((value >> 16) & 0xFFU).reinterpret_as_int().to_byte())
+  buf.write_byte(((value >> 24) & 0xFFU).reinterpret_as_int().to_byte())
+}
+
+///|
+fn lz4_hash4(bytes : Bytes, pos : Int) -> Int {
+  let v = bytes[pos].to_uint() |
+    (bytes[pos + 1].to_uint() << 8) |
+    (bytes[pos + 2].to_uint() << 16) |
+    (bytes[pos + 3].to_uint() << 24)
+  let h = (v * LZ4_HASH_SEED) >> 16
+  h.reinterpret_as_int()
+}
+
+///|
+fn lz4_write_len(buf : @buffer.Buffer, len : Int) -> Unit {
+  let mut v = len
+  while v >= 255 {
+    buf.write_byte((255).to_byte())
+    v = v - 255
+  }
+  buf.write_byte(v.to_byte())
+}
+
+///|
+fn lz4_encode_block(bytes : Bytes) -> Bytes {
+  if bytes.length() == 0 {
+    return b""
+  }
+  let len = bytes.length()
+  let dict : Array[Int] = []
+  for i = 0; i < LZ4_HASH_SIZE; i = i + 1 {
+    dict.push(-1)
+  }
+  let buf = @buffer.new()
+  let mut anchor = 0
+  let mut idx = 0
+  while idx + LZ4_MIN_MATCH <= len {
+    let h = lz4_hash4(bytes, idx)
+    let prev = dict[h]
+    dict[h] = idx
+    if prev >= 0 && idx - prev <= 0xFFFF {
+      let mut match_len = 0
+      while match_len < LZ4_MIN_MATCH {
+        if bytes[prev + match_len] != bytes[idx + match_len] {
+          break
+        }
+        match_len = match_len + 1
+      }
+      if match_len == LZ4_MIN_MATCH {
+        while idx + match_len < len &&
+              bytes[prev + match_len] == bytes[idx + match_len] {
+          match_len = match_len + 1
+        }
+        let literal_len = idx - anchor
+        let match_token = match_len - LZ4_MIN_MATCH
+        let lit_token = if literal_len < 15 { literal_len } else { 15 }
+        let match_token_n = if match_token < 15 { match_token } else { 15 }
+        let token = ((lit_token << 4) | match_token_n).to_byte()
+        buf.write_byte(token)
+        if literal_len >= 15 {
+          lz4_write_len(buf, literal_len - 15)
+        }
+        if literal_len > 0 {
+          let literal_bytes = bytes.sub(start=anchor, end=idx).to_bytes()
+          buf.write_bytes(literal_bytes)
+        }
+        let offset = idx - prev
+        buf.write_byte((offset & 0xFF).to_byte())
+        buf.write_byte(((offset >> 8) & 0xFF).to_byte())
+        if match_token >= 15 {
+          lz4_write_len(buf, match_token - 15)
+        }
+        idx = idx + match_len
+        anchor = idx
+        continue
+      }
+    }
+    idx = idx + 1
+  }
+  let literal_len = len - anchor
+  let lit_token = if literal_len < 15 { literal_len } else { 15 }
+  let token = (lit_token << 4).to_byte()
+  buf.write_byte(token)
+  if literal_len >= 15 {
+    lz4_write_len(buf, literal_len - 15)
+  }
+  if literal_len > 0 {
+    let literal_bytes = bytes.sub(start=anchor, end=len).to_bytes()
+    buf.write_bytes(literal_bytes)
+  }
+  buf.to_bytes()
+}
+
+///|
+fn lz4_frame_header_checksum(flg : Byte, bd : Byte) -> Byte {
+  let header_bytes : Bytes = [flg, bd]
+  let hash = xxhash32(header_bytes, 0U)
+  ((hash >> 8) & 0xFFU).reinterpret_as_int().to_byte()
+}
+
+///|
+fn lz4_encode_frame(bytes : Bytes) -> Bytes {
+  let buf = @buffer.new()
+  lz4_write_u32_le(buf, LZ4_FRAME_MAGIC)
+  buf.write_byte(LZ4_FRAME_FLG)
+  buf.write_byte(LZ4_FRAME_BD)
+  buf.write_byte(lz4_frame_header_checksum(LZ4_FRAME_FLG, LZ4_FRAME_BD))
+  let mut pos = 0
+  while pos < bytes.length() {
+    let remain = bytes.length() - pos
+    let chunk_len = if remain > LZ4_MAX_BLOCK_SIZE {
+      LZ4_MAX_BLOCK_SIZE
+    } else {
+      remain
+    }
+    let chunk = bytes.sub(start=pos, end=pos + chunk_len).to_bytes()
+    let compressed = lz4_encode_block(chunk)
+    if compressed.length() < chunk.length() {
+      lz4_write_u32_le(buf, compressed.length().reinterpret_as_uint())
+      buf.write_bytes(compressed)
+    } else {
+      let size = chunk.length().reinterpret_as_uint() | 0x8000_0000U
+      lz4_write_u32_le(buf, size)
+      buf.write_bytes(chunk)
+    }
+    pos = pos + chunk_len
+  }
+  lz4_write_u32_le(buf, 0U)
+  buf.to_bytes()
+}
+
+///|
 pub fn lz4_decode_frame(bytes : Bytes) -> Result[Bytes, @types.LoroError] {
   let reader = ByteReader::new(bytes)
   let magic = match reader.read_u32_le() {

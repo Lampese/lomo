@@ -1,14 +1,26 @@
 ///|
-const EPHEMERAL_MAGIC : Bytes = b"LME1"
+const TAG_AWARENESS_NULL : Byte = b'\x00'
 
 ///|
-const EPHEMERAL_VERSION : Byte = b'\x01'
+const TAG_AWARENESS_BOOL : Byte = b'\x01'
 
 ///|
-const TAG_EPHEMERAL_NONE : Byte = b'\x00'
+const TAG_AWARENESS_F64 : Byte = b'\x02'
 
 ///|
-const TAG_EPHEMERAL_SOME : Byte = b'\x01'
+const TAG_AWARENESS_I64 : Byte = b'\x03'
+
+///|
+const TAG_AWARENESS_STRING : Byte = b'\x04'
+
+///|
+const TAG_AWARENESS_LIST : Byte = b'\x05'
+
+///|
+const TAG_AWARENESS_MAP : Byte = b'\x06'
+
+///|
+const TAG_AWARENESS_BYTES : Byte = b'\x08'
 
 ///|
 pub enum EphemeralEventTrigger {
@@ -69,7 +81,8 @@ pub struct EphemeralStore {
 ///|
 struct EphemeralRecord {
   value : @types.LoroValue?
-  timestamp : UInt64
+  clock : Int64
+  updated_at : UInt64
 }
 
 ///|
@@ -111,7 +124,7 @@ pub fn EphemeralStore::encode(self : EphemeralStore, key : String) -> Bytes {
   let now = now_ms()
   match self.states.get(key) {
     Some(record) =>
-      if is_expired(record.timestamp, now, self.timeout_ms) {
+      if is_expired(record.updated_at, now, self.timeout_ms) {
         b""
       } else {
         encode_entries([(key, record)])
@@ -125,7 +138,7 @@ pub fn EphemeralStore::encode_all(self : EphemeralStore) -> Bytes {
   let now = now_ms()
   let entries : Array[(String, EphemeralRecord)] = []
   for key, record in self.states {
-    if !is_expired(record.timestamp, now, self.timeout_ms) {
+    if !is_expired(record.updated_at, now, self.timeout_ms) {
       entries.push((key, record))
     }
   }
@@ -150,15 +163,17 @@ pub fn EphemeralStore::apply(
   let removed : Array[String] = []
   for entry in entries {
     let (key, record) = entry
-    if is_expired(record.timestamp, now, self.timeout_ms) {
-      continue
-    }
     match self.states.get(key) {
       Some(existing) => {
-        if existing.timestamp >= record.timestamp {
+        if existing.clock >= record.clock {
           continue
         }
-        self.states[key] = record
+        let incoming = EphemeralRecord::{
+          value: record.value,
+          clock: record.clock,
+          updated_at: now,
+        }
+        self.states[key] = incoming
         match (existing.value, record.value) {
           (Some(_), Some(_)) => updated.push(key)
           (Some(_), None) => removed.push(key)
@@ -167,7 +182,12 @@ pub fn EphemeralStore::apply(
         }
       }
       None => {
-        self.states[key] = record
+        let incoming = EphemeralRecord::{
+          value: record.value,
+          clock: record.clock,
+          updated_at: now,
+        }
+        self.states[key] = incoming
         match record.value {
           Some(_) => added.push(key)
           None => ()
@@ -193,7 +213,10 @@ pub fn EphemeralStore::set(
   key : String,
   value : @types.LoroValue,
 ) -> Unit {
-  self.set_state(key, Some(value))
+  match value {
+    @types.LoroValue::Null => self.set_state(key, None)
+    _ => self.set_state(key, Some(value))
+  }
 }
 
 ///|
@@ -244,7 +267,7 @@ pub fn EphemeralStore::remove_outdated(self : EphemeralStore) -> Unit {
   let removed : Array[String] = []
   let next : Map[String, EphemeralRecord] = {}
   for key, record in self.states {
-    if is_expired(record.timestamp, now, self.timeout_ms) {
+    if is_expired(record.updated_at, now, self.timeout_ms) {
       match record.value {
         Some(_) => removed.push(key)
         None => ()
@@ -292,8 +315,12 @@ fn EphemeralStore::set_state(
   value : @types.LoroValue?,
 ) -> Unit {
   let now = now_ms()
-  let record = EphemeralRecord::{ value, timestamp: now }
   let old = self.states.get(key)
+  let next_clock = match old {
+    Some(record) => record.clock + 1
+    None => 1
+  }
+  let record = EphemeralRecord::{ value, clock: next_clock, updated_at: now }
   self.states[key] = record
   self.local_subs = filter_local_subs(self.local_subs, self.encode(key))
   let added : Array[String] = []
@@ -399,33 +426,38 @@ fn now_ms() -> UInt64 {
 }
 
 ///|
-fn is_expired(timestamp : UInt64, now : UInt64, timeout_ms : UInt64) -> Bool {
+fn is_expired(updated_at : UInt64, now : UInt64, timeout_ms : UInt64) -> Bool {
   if timeout_ms == 0 {
     return false
   }
-  now > timestamp && now - timestamp > timeout_ms
+  now > updated_at && now - updated_at > timeout_ms
 }
 
 ///|
 fn encode_entries(entries : Array[(String, EphemeralRecord)]) -> Bytes {
   let buf = @buffer.new()
-  buf.write_bytes(EPHEMERAL_MAGIC)
-  buf.write_byte(EPHEMERAL_VERSION)
-  @encoding.write_uvarint(buf, entries.length().to_uint64())
+  let filtered : Array[(UInt64, Int64, @types.LoroValue)] = []
   for entry in entries {
     let (key, record) = entry
-    @encoding.write_string(buf, key)
-    @encoding.write_uvarint(buf, record.timestamp)
-    match record.value {
-      Some(value) => {
-        buf.write_byte(TAG_EPHEMERAL_SOME)
-        match @encoding.write_value(buf, value) {
-          Ok(_) => ()
-          Err(_) => return b""
-        }
-      }
-      None => buf.write_byte(TAG_EPHEMERAL_NONE)
+    let peer = match parse_peer_id(key) {
+      Some(value) => value
+      None => continue
     }
+    let value = match record.value {
+      Some(value) => value
+      None => @types.LoroValue::Null
+    }
+    if !can_encode_awareness_value(value) {
+      continue
+    }
+    filtered.push((peer, record.clock, value))
+  }
+  @encoding.write_uvarint(buf, filtered.length().to_uint64())
+  for entry in filtered {
+    let (peer, clock, value) = entry
+    @encoding.write_uvarint(buf, peer)
+    @encoding.write_ivarint(buf, clock)
+    write_awareness_value(buf, value)
   }
   buf.to_bytes()
 }
@@ -438,49 +470,215 @@ fn decode_entries(
     return Ok([])
   }
   let reader = @encoding.Reader::new(data)
-  let magic = match reader.read_bytes(4) {
-    Ok(value) => value
-    Err(err) => return Err(err)
-  }
-  if magic != EPHEMERAL_MAGIC {
-    return Err(@types.LoroError::DecodeError("invalid awareness magic"))
-  }
-  let version = match reader.read_byte() {
-    Ok(value) => value
-    Err(err) => return Err(err)
-  }
-  if version != EPHEMERAL_VERSION {
-    return Err(@types.LoroError::DecodeError("unsupported awareness version"))
-  }
   let count = match @encoding.read_uvarint(reader) {
     Ok(value) => value.to_int()
     Err(err) => return Err(err)
   }
   let out : Array[(String, EphemeralRecord)] = []
   for i = 0; i < count; i = i + 1 {
-    let key = match @encoding.read_string(reader) {
+    let peer = match @encoding.read_uvarint(reader) {
       Ok(value) => value
       Err(err) => return Err(err)
     }
-    let timestamp = match @encoding.read_uvarint(reader) {
+    let clock = match @encoding.read_ivarint(reader) {
       Ok(value) => value
       Err(err) => return Err(err)
     }
-    let tag = match reader.read_byte() {
+    let value = match read_awareness_value(reader) {
       Ok(value) => value
       Err(err) => return Err(err)
     }
-    if tag == TAG_EPHEMERAL_SOME {
-      let value = match @encoding.read_value(reader) {
+    let value_opt = match value {
+      @types.LoroValue::Null => None
+      _ => Some(value)
+    }
+    out.push(
+      (
+        peer.to_string(),
+        EphemeralRecord::{ value: value_opt, clock, updated_at: 0 },
+      ),
+    )
+  }
+  Ok(out)
+}
+
+///|
+fn parse_peer_id(key : String) -> UInt64? {
+  let value : UInt64 = @strconv.parse_uint64(key[:]) catch { _ => return None }
+  Some(value)
+}
+
+///|
+fn can_encode_awareness_value(value : @types.LoroValue) -> Bool {
+  match value {
+    @types.LoroValue::Container(_) => false
+    @types.LoroValue::List(items) => {
+      for item in items {
+        if !can_encode_awareness_value(item) {
+          return false
+        }
+      }
+      true
+    }
+    @types.LoroValue::Map(map) => {
+      for _key, item in map {
+        if !can_encode_awareness_value(item) {
+          return false
+        }
+      }
+      true
+    }
+    _ => true
+  }
+}
+
+///|
+fn write_awareness_value(
+  buf : @buffer.Buffer,
+  value : @types.LoroValue,
+) -> Unit {
+  match value {
+    @types.LoroValue::Null => buf.write_byte(TAG_AWARENESS_NULL)
+    @types.LoroValue::Bool(v) => {
+      buf.write_byte(TAG_AWARENESS_BOOL)
+      buf.write_byte(if v { b'\x01' } else { b'\x00' })
+    }
+    @types.LoroValue::F64(v) => {
+      buf.write_byte(TAG_AWARENESS_F64)
+      write_f64_le(buf, v)
+    }
+    @types.LoroValue::I64(v) => {
+      buf.write_byte(TAG_AWARENESS_I64)
+      @encoding.write_ivarint(buf, v)
+    }
+    @types.LoroValue::String(v) => {
+      buf.write_byte(TAG_AWARENESS_STRING)
+      @encoding.write_string(buf, v)
+    }
+    @types.LoroValue::Bytes(v) => {
+      buf.write_byte(TAG_AWARENESS_BYTES)
+      @encoding.write_bytes(buf, v)
+    }
+    @types.LoroValue::List(items) => {
+      buf.write_byte(TAG_AWARENESS_LIST)
+      @encoding.write_uvarint(buf, items.length().to_uint64())
+      for item in items {
+        write_awareness_value(buf, item)
+      }
+    }
+    @types.LoroValue::Map(map) => {
+      buf.write_byte(TAG_AWARENESS_MAP)
+      @encoding.write_uvarint(buf, map.length().to_uint64())
+      for key, item in map {
+        @encoding.write_string(buf, key)
+        write_awareness_value(buf, item)
+      }
+    }
+    @types.LoroValue::Container(_) => buf.write_byte(TAG_AWARENESS_NULL)
+  }
+}
+
+///|
+fn read_awareness_value(
+  reader : @encoding.Reader,
+) -> Result[@types.LoroValue, @types.LoroError] {
+  let tag = match reader.read_byte() {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  if tag == TAG_AWARENESS_NULL {
+    Ok(@types.LoroValue::Null)
+  } else if tag == TAG_AWARENESS_BOOL {
+    let raw = match reader.read_byte() {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    if raw == b'\x00' {
+      Ok(@types.LoroValue::Bool(false))
+    } else if raw == b'\x01' {
+      Ok(@types.LoroValue::Bool(true))
+    } else {
+      Err(@types.LoroError::DecodeError("invalid awareness bool"))
+    }
+  } else if tag == TAG_AWARENESS_F64 {
+    match read_f64_le(reader) {
+      Ok(value) => Ok(@types.LoroValue::F64(value))
+      Err(err) => Err(err)
+    }
+  } else if tag == TAG_AWARENESS_I64 {
+    match @encoding.read_ivarint(reader) {
+      Ok(value) => Ok(@types.LoroValue::I64(value))
+      Err(err) => Err(err)
+    }
+  } else if tag == TAG_AWARENESS_STRING {
+    match @encoding.read_string(reader) {
+      Ok(value) => Ok(@types.LoroValue::String(value))
+      Err(err) => Err(err)
+    }
+  } else if tag == TAG_AWARENESS_BYTES {
+    match @encoding.read_bytes(reader) {
+      Ok(value) => Ok(@types.LoroValue::Bytes(value))
+      Err(err) => Err(err)
+    }
+  } else if tag == TAG_AWARENESS_LIST {
+    let count = match @encoding.read_uvarint(reader) {
+      Ok(value) => value.to_int()
+      Err(err) => return Err(err)
+    }
+    let items : Array[@types.LoroValue] = []
+    for i = 0; i < count; i = i + 1 {
+      let item = match read_awareness_value(reader) {
         Ok(value) => value
         Err(err) => return Err(err)
       }
-      out.push((key, EphemeralRecord::{ value: Some(value), timestamp }))
-    } else if tag == TAG_EPHEMERAL_NONE {
-      out.push((key, EphemeralRecord::{ value: None, timestamp }))
-    } else {
-      return Err(@types.LoroError::DecodeError("invalid awareness value tag"))
+      items.push(item)
     }
+    Ok(@types.LoroValue::List(items))
+  } else if tag == TAG_AWARENESS_MAP {
+    let count = match @encoding.read_uvarint(reader) {
+      Ok(value) => value.to_int()
+      Err(err) => return Err(err)
+    }
+    let map : Map[String, @types.LoroValue] = {}
+    for i = 0; i < count; i = i + 1 {
+      let key = match @encoding.read_string(reader) {
+        Ok(value) => value
+        Err(err) => return Err(err)
+      }
+      let item = match read_awareness_value(reader) {
+        Ok(value) => value
+        Err(err) => return Err(err)
+      }
+      map[key] = item
+    }
+    Ok(@types.LoroValue::Map(map))
+  } else {
+    Err(@types.LoroError::DecodeError("invalid awareness value tag"))
   }
-  Ok(out)
+}
+
+///|
+fn write_f64_le(buf : @buffer.Buffer, value : Double) -> Unit {
+  let bits = value.reinterpret_as_uint64()
+  buf.write_byte((bits & 0xFFUL).to_int().to_byte())
+  buf.write_byte(((bits >> 8) & 0xFFUL).to_int().to_byte())
+  buf.write_byte(((bits >> 16) & 0xFFUL).to_int().to_byte())
+  buf.write_byte(((bits >> 24) & 0xFFUL).to_int().to_byte())
+  buf.write_byte(((bits >> 32) & 0xFFUL).to_int().to_byte())
+  buf.write_byte(((bits >> 40) & 0xFFUL).to_int().to_byte())
+  buf.write_byte(((bits >> 48) & 0xFFUL).to_int().to_byte())
+  buf.write_byte(((bits >> 56) & 0xFFUL).to_int().to_byte())
+}
+
+///|
+fn read_f64_le(reader : @encoding.Reader) -> Result[Double, @types.LoroError] {
+  let bytes = match reader.read_bytes(8) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let mut bits : UInt64 = 0
+  for i = 0; i < 8; i = i + 1 {
+    bits = bits | (bytes[i].to_uint64() << (i * 8))
+  }
+  Ok(bits.reinterpret_as_double())
 }

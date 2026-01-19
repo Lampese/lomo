@@ -2,6 +2,9 @@
 const SST_MAGIC : UInt = 0x4F524F4CU
 
 ///|
+const SST_BLOCK_SIZE : Int = 4 * 1024
+
+///|
 priv struct BlockMeta {
   offset : Int
   is_large : Bool
@@ -22,6 +25,87 @@ priv struct EncodeMeta {
   is_large : Bool
   compression : Int
   last_key : Bytes?
+}
+
+///|
+priv struct BlockBuilder {
+  block_size : Int
+  data : @buffer.Buffer
+  offsets : Array[Int]
+  mut first_key : Bytes
+  mut last_key : Bytes
+  mut is_large : Bool
+}
+
+///|
+fn BlockBuilder::new(block_size : Int) -> BlockBuilder {
+  BlockBuilder::{
+    block_size,
+    data: @buffer.new(),
+    offsets: [],
+    first_key: b"",
+    last_key: b"",
+    is_large: false,
+  }
+}
+
+///|
+fn BlockBuilder::is_empty(self : BlockBuilder) -> Bool {
+  !self.is_large && self.offsets.length() == 0
+}
+
+///|
+fn BlockBuilder::estimated_size(self : BlockBuilder) -> Int {
+  if self.is_large {
+    self.data.length()
+  } else {
+    2 + self.offsets.length() * 2 + self.data.length() + 4
+  }
+}
+
+///|
+fn BlockBuilder::add(self : BlockBuilder, key : Bytes, value : Bytes) -> Bool {
+  if self.first_key.length() == 0 {
+    self.first_key = key
+    self.last_key = key
+    if value.length() > self.block_size {
+      self.data.write_bytes(value)
+      self.is_large = true
+      return true
+    }
+    self.offsets.push(self.data.length())
+    self.data.write_bytes(value)
+    return true
+  }
+  if self.estimated_size() + key.length() + value.length() + 3 > self.block_size {
+    return false
+  }
+  let (common, suffix) = common_prefix_len_and_suffix(key, self.first_key)
+  self.offsets.push(self.data.length())
+  self.data.write_byte(common.to_byte())
+  kv_write_u16_le(self.data, suffix.length())
+  self.data.write_bytes(suffix)
+  self.data.write_bytes(value)
+  self.last_key = key
+  true
+}
+
+///|
+fn common_prefix_len_and_suffix(key : Bytes, first_key : Bytes) -> (Int, Bytes) {
+  let max = if key.length() < first_key.length() {
+    key.length()
+  } else {
+    first_key.length()
+  }
+  let mut common = 0
+  while common < max && common < 255 {
+    if key[common] != first_key[common] {
+      break
+    }
+    common = common + 1
+  }
+  let suffix = key.sub(start=common, end=key.length()).to_bytes()
+  (common, suffix)
 }
 
 ///|
@@ -76,19 +160,15 @@ pub fn encode_kv_store(entries : Array[KvEntry]) -> Bytes {
   kv_write_u32_le(buf, SST_MAGIC)
   buf.write_byte(0)
   let metas : Array[EncodeMeta] = []
+  let mut builder = BlockBuilder::new(SST_BLOCK_SIZE)
   for entry in sorted {
-    let offset = buf.length()
-    buf.write_bytes(entry.value)
-    let checksum = xxhash32(entry.value, XXH_SEED)
-    kv_write_u32_le(buf, checksum)
-    metas.push(EncodeMeta::{
-      offset,
-      first_key: entry.key,
-      is_large: true,
-      compression: 0,
-      last_key: None,
-    })
+    if !builder.add(entry.key, entry.value) {
+      flush_block(builder, buf, metas)
+      builder = BlockBuilder::new(SST_BLOCK_SIZE)
+      ignore(builder.add(entry.key, entry.value))
+    }
   }
+  flush_block(builder, buf, metas)
   let meta_offset = buf.length()
   let meta_entries = @buffer.new()
   for m in metas {
@@ -116,6 +196,62 @@ pub fn encode_kv_store(entries : Array[KvEntry]) -> Bytes {
   buf.write_bytes(meta.to_bytes())
   kv_write_u32_le(buf, meta_offset.reinterpret_as_uint())
   buf.to_bytes()
+}
+
+///|
+fn flush_block(
+  builder : BlockBuilder,
+  buf : @buffer.Buffer,
+  metas : Array[EncodeMeta],
+) -> Unit {
+  if builder.is_empty() {
+    return
+  }
+  let offset = buf.length()
+  let (block_bytes, compression, is_large) = if builder.is_large {
+    let raw = builder.data.to_bytes()
+    let (block_bytes, compression) = kv_compress_block(raw)
+    (block_bytes, compression, true)
+  } else {
+    let raw = build_normal_block_bytes(builder.data, builder.offsets)
+    let (block_bytes, compression) = kv_compress_block(raw)
+    (block_bytes, compression, false)
+  }
+  buf.write_bytes(block_bytes)
+  let checksum = xxhash32(block_bytes, XXH_SEED)
+  kv_write_u32_le(buf, checksum)
+  let last_key = if is_large { None } else { Some(builder.last_key) }
+  metas.push(EncodeMeta::{
+    offset,
+    first_key: builder.first_key,
+    is_large,
+    compression,
+    last_key,
+  })
+}
+
+///|
+fn build_normal_block_bytes(
+  data : @buffer.Buffer,
+  offsets : Array[Int],
+) -> Bytes {
+  let buf = @buffer.new()
+  buf.write_bytes(data.to_bytes())
+  for offset in offsets {
+    kv_write_u16_le(buf, offset)
+  }
+  kv_write_u16_le(buf, offsets.length())
+  buf.to_bytes()
+}
+
+///|
+fn kv_compress_block(value : Bytes) -> (Bytes, Int) {
+  let compressed = lz4_encode_frame(value)
+  if compressed.length() < value.length() {
+    (compressed, 1)
+  } else {
+    (value, 0)
+  }
 }
 
 ///|
@@ -189,6 +325,18 @@ pub fn decode_kv_store(
 fn decode_sstable_meta(
   bytes : Bytes,
 ) -> Result[Array[BlockMeta], @types.LoroError] {
+  if bytes.length() < 8 {
+    return Err(@types.LoroError::DecodeError("invalid sstable meta"))
+  }
+  let checksum_read = match read_u32_le_at(bytes, bytes.length() - 4) {
+    Ok(v) => v
+    Err(err) => return Err(err)
+  }
+  let checksum_body = bytes.sub(start=4, end=bytes.length() - 4).to_bytes()
+  let checksum = xxhash32(checksum_body, XXH_SEED)
+  if checksum != checksum_read {
+    return Err(@types.LoroError::DecodeError("invalid sstable meta checksum"))
+  }
   let reader = ByteReader::new(bytes)
   let count = match reader.read_u32_le() {
     Ok(v) => v.reinterpret_as_int()
@@ -237,7 +385,15 @@ fn decode_block_data(
   if bytes.length() < 4 {
     return Err(@types.LoroError::DecodeError("invalid sstable block"))
   }
+  let checksum_read = match read_u32_le_at(bytes, bytes.length() - 4) {
+    Ok(v) => v
+    Err(err) => return Err(err)
+  }
   let raw = bytes.sub(start=0, end=bytes.length() - 4).to_bytes()
+  let checksum = xxhash32(raw, XXH_SEED)
+  if checksum != checksum_read {
+    return Err(@types.LoroError::DecodeError("invalid sstable block checksum"))
+  }
   if compression == 0 {
     Ok(raw)
   } else if compression == 1 {

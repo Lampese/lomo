@@ -512,7 +512,10 @@ fn inverse_ops_for_persisted_op(
       let undo = @op.CounterOp::new(-counter_op.delta())
       Ok([UndoOp::{ container, content: @op.RawOpContent::Counter(undo) }])
     }
-    _ => Err(@types.LoroError::Unsupported("undo op not supported"))
+    @op.InnerContent::RichText => Ok([])
+    @op.InnerContent::MovableList => Ok([])
+    @op.InnerContent::Unknown =>
+      Err(@types.LoroError::Unsupported("undo op not supported"))
   }
 }
 
