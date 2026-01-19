@@ -75,6 +75,22 @@ pub fn ListState::id_at(
 }
 
 ///|
+pub fn ListState::ids_in_range(
+  self : ListState,
+  start : Int,
+  end : Int,
+) -> Result[Array[@types.IdFull], @types.LoroError] {
+  if start < 0 || end < start || end > self.list.length() {
+    return Err(@types.LoroError::InternalError("index out of range"))
+  }
+  let out : Array[@types.IdFull] = []
+  for i = start; i < end; i = i + 1 {
+    out.push(self.list[i].id)
+  }
+  Ok(out)
+}
+
+///|
 fn ListState::find_index_by_id(self : ListState, elem_id : @types.IdLp) -> Int? {
   for i = 0; i < self.list.length(); i = i + 1 {
     let id = self.list[i].id

@@ -42,12 +42,14 @@ pub fn DocState::deep_value_for_container(Self, @types.ContainerID) -> @types.Lo
 pub fn DocState::get_deep_value(Self) -> @types.LoroValue
 pub fn DocState::get_or_create(Self, @types.ContainerID, @types.ContainerType) -> ContainerState
 pub fn DocState::list_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn DocState::list_ids_in_range(Self, @types.ContainerID, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn DocState::list_len(Self, @types.ContainerID) -> Result[Int, @types.LoroError]
 pub fn DocState::list_value_at(Self, @types.ContainerID, Int) -> Result[@types.LoroValue?, @types.LoroError]
 pub fn DocState::map_get(Self, @types.ContainerID, String) -> Result[@types.LoroValue?, @types.LoroError]
 pub fn DocState::map_value(Self, @types.ContainerID) -> @types.LoroValue?
 pub fn DocState::movable_list_elem_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdLp, @types.LoroError]
 pub fn DocState::movable_list_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn DocState::movable_list_ids_in_range(Self, @types.ContainerID, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn DocState::movable_list_len(Self, @types.ContainerID) -> Result[Int, @types.LoroError]
 pub fn DocState::movable_list_value_at(Self, @types.ContainerID, Int) -> Result[@types.LoroValue?, @types.LoroError]
 pub fn DocState::new() -> Self
@@ -59,6 +61,7 @@ pub fn DocState::set_movable_list_state(Self, @types.ContainerID, MovableListSta
 pub fn DocState::set_text_state(Self, @types.ContainerID, TextState) -> Unit
 pub fn DocState::set_tree_state(Self, @types.ContainerID, TreeState) -> Unit
 pub fn DocState::text_id_at(Self, @types.ContainerID, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn DocState::text_ids_in_range(Self, @types.ContainerID, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn DocState::text_len(Self, @types.ContainerID) -> Result[Int, @types.LoroError]
 pub fn DocState::text_list_pos_to_text_pos(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
 pub fn DocState::text_plain_text(Self, @types.ContainerID) -> Result[String, @types.LoroError]
@@ -87,6 +90,7 @@ pub fn ListState::delete_by_id(Self, @op.DeleteSpanWithId) -> Result[Unit, @type
 pub fn ListState::delete_range(Self, Int, Int) -> Result[Unit, @types.LoroError]
 pub fn ListState::elems(Self) -> Array[Elem]
 pub fn ListState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn ListState::ids_in_range(Self, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn ListState::insert(Self, Int, @types.LoroValue, @types.IdFull) -> Result[Unit, @types.LoroError]
 pub fn ListState::insert_batch(Self, Int, Array[@types.LoroValue], @types.IdFull) -> Result[Unit, @types.LoroError]
 pub fn ListState::len(Self) -> Int
@@ -137,6 +141,7 @@ pub fn MovableListState::apply_inner_op(Self, @arena.SharedArena, @op.InnerListO
 pub fn MovableListState::elem_id_at(Self, Int) -> Result[@types.IdLp, @types.LoroError]
 pub fn MovableListState::elems(Self) -> Array[MovableElem]
 pub fn MovableListState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn MovableListState::ids_in_range(Self, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn MovableListState::len(Self) -> Int
 pub fn MovableListState::new() -> Self
 pub fn MovableListState::to_value(Self) -> @types.LoroValue
@@ -175,6 +180,7 @@ pub fn TextState::delete(Self, Int, Int) -> Unit
 pub fn TextState::delete_by_id(Self, @op.DeleteSpanWithId) -> Unit
 pub fn TextState::elems(Self) -> Array[TextElem]
 pub fn TextState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
+pub fn TextState::ids_in_range(Self, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn TextState::insert(Self, Int, String, @types.IdFull) -> Unit
 pub fn TextState::len(Self) -> Int
 pub fn TextState::new() -> Self

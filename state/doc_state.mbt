@@ -324,6 +324,20 @@ pub fn DocState::list_id_at(
 }
 
 ///|
+pub fn DocState::list_ids_in_range(
+  self : DocState,
+  id : @types.ContainerID,
+  start : Int,
+  end : Int,
+) -> Result[Array[@types.IdFull], @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::ListState(list_state)) =>
+      list_state.ids_in_range(start, end)
+    _ => Err(@types.LoroError::InvalidContainer("list not found"))
+  }
+}
+
+///|
 pub fn DocState::text_id_at(
   self : DocState,
   id : @types.ContainerID,
@@ -331,6 +345,20 @@ pub fn DocState::text_id_at(
 ) -> Result[@types.IdFull, @types.LoroError] {
   match self.containers.get(id) {
     Some(ContainerState::TextState(text_state)) => text_state.id_at(index)
+    _ => Err(@types.LoroError::InvalidContainer("text not found"))
+  }
+}
+
+///|
+pub fn DocState::text_ids_in_range(
+  self : DocState,
+  id : @types.ContainerID,
+  start : Int,
+  end : Int,
+) -> Result[Array[@types.IdFull], @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::TextState(text_state)) =>
+      text_state.ids_in_range(start, end)
     _ => Err(@types.LoroError::InvalidContainer("text not found"))
   }
 }
@@ -344,6 +372,20 @@ pub fn DocState::movable_list_id_at(
   match self.containers.get(id) {
     Some(ContainerState::MovableListState(list_state)) =>
       list_state.id_at(index)
+    _ => Err(@types.LoroError::InvalidContainer("movable list not found"))
+  }
+}
+
+///|
+pub fn DocState::movable_list_ids_in_range(
+  self : DocState,
+  id : @types.ContainerID,
+  start : Int,
+  end : Int,
+) -> Result[Array[@types.IdFull], @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::MovableListState(list_state)) =>
+      list_state.ids_in_range(start, end)
     _ => Err(@types.LoroError::InvalidContainer("movable list not found"))
   }
 }

@@ -248,6 +248,22 @@ pub fn TextState::id_at(
 }
 
 ///|
+pub fn TextState::ids_in_range(
+  self : TextState,
+  start : Int,
+  end : Int,
+) -> Result[Array[@types.IdFull], @types.LoroError] {
+  if start < 0 || end < start || end > self.elems.length() {
+    return Err(@types.LoroError::InternalError("index out of range"))
+  }
+  let out : Array[@types.IdFull] = []
+  for i = start; i < end; i = i + 1 {
+    out.push(self.elems[i].id)
+  }
+  Ok(out)
+}
+
+///|
 pub fn TextState::slice(
   self : TextState,
   start : Int,

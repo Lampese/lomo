@@ -863,6 +863,58 @@ pub fn LoroDoc::list_get_or_create_container(
 }
 
 ///|
+fn delete_spans_from_ids(
+  ids : Array[@types.IdFull],
+  start_pos : Int,
+  list_pos_at : (Int) -> Result[Int, @types.LoroError],
+) -> Result[Array[@op.DeleteSpanWithId], @types.LoroError] {
+  let spans : Array[@op.DeleteSpanWithId] = []
+  if ids.length() == 0 {
+    return Ok(spans)
+  }
+  let mut current_peer = ids[0].peer
+  let mut start_counter = ids[0].counter
+  let mut last_counter = ids[0].counter
+  let mut current_pos = start_pos
+  for i = 1; i < ids.length(); i = i + 1 {
+    let id = ids[i]
+    if id.peer == current_peer && id.counter == last_counter + 1 {
+      last_counter = id.counter
+      continue
+    }
+    let span_len = last_counter - start_counter + 1
+    let list_pos = match list_pos_at(current_pos) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    spans.push(
+      @op.DeleteSpanWithId::new(
+        @types.ID::new(current_peer, start_counter),
+        list_pos,
+        span_len,
+      ),
+    )
+    current_peer = id.peer
+    start_counter = id.counter
+    last_counter = id.counter
+    current_pos = start_pos + i
+  }
+  let span_len = last_counter - start_counter + 1
+  let list_pos = match list_pos_at(current_pos) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  spans.push(
+    @op.DeleteSpanWithId::new(
+      @types.ID::new(current_peer, start_counter),
+      list_pos,
+      span_len,
+    ),
+  )
+  Ok(spans)
+}
+
+///|
 pub fn LoroDoc::list_delete(
   self : LoroDoc,
   handler : @container.ListHandler,
@@ -872,14 +924,39 @@ pub fn LoroDoc::list_delete(
   if len <= 0 {
     return Err(@types.LoroError::InternalError("len must be > 0"))
   }
-  let id_full = match self.state.list_id_at(handler.id(), pos) {
+  let end = pos + len
+  let ids = match self.state.list_ids_in_range(handler.id(), pos, end) {
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let id_start = id_full.to_id()
-  let del = @op.DeleteSpanWithId::new(id_start, pos, len)
-  let op = @op.ListOp::Delete(del)
-  self.apply_list_op(handler, op)
+  let spans = match delete_spans_from_ids(ids, pos, p => Ok(p)) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  if spans.length() == 0 {
+    return Ok(())
+  }
+  let need_txn = !self.txn_active && spans.length() > 1
+  if need_txn {
+    match self.begin_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  for span in spans {
+    let op = @op.ListOp::Delete(span)
+    match self.apply_list_op(handler, op) {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  if need_txn {
+    match self.commit_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  Ok(())
 }
 
 ///|
@@ -957,14 +1034,39 @@ pub fn LoroDoc::movable_list_delete(
   if len <= 0 {
     return Err(@types.LoroError::InternalError("len must be > 0"))
   }
-  let id_full = match self.state.movable_list_id_at(handler.id(), pos) {
+  let end = pos + len
+  let ids = match self.state.movable_list_ids_in_range(handler.id(), pos, end) {
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let id_start = id_full.to_id()
-  let del = @op.DeleteSpanWithId::new(id_start, pos, len)
-  let op = @op.ListOp::Delete(del)
-  self.apply_list_op_to(handler.id(), op)
+  let spans = match delete_spans_from_ids(ids, pos, p => Ok(p)) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  if spans.length() == 0 {
+    return Ok(())
+  }
+  let need_txn = !self.txn_active && spans.length() > 1
+  if need_txn {
+    match self.begin_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  for span in spans {
+    let op = @op.ListOp::Delete(span)
+    match self.apply_list_op_to(handler.id(), op) {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  if need_txn {
+    match self.commit_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  Ok(())
 }
 
 ///|
@@ -1655,18 +1757,43 @@ pub fn LoroDoc::text_delete(
   if len <= 0 {
     return Err(@types.LoroError::InternalError("len must be > 0"))
   }
-  let id_full = match self.state.text_id_at(handler.id(), pos) {
+  let end = pos + len
+  let ids = match self.state.text_ids_in_range(handler.id(), pos, end) {
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let list_pos = match self.state.text_text_pos_to_list_pos(handler.id(), pos) {
+  let list_pos_at = (text_pos : Int) => self.state.text_text_pos_to_list_pos(
+    handler.id(),
+    text_pos,
+  )
+  let spans = match delete_spans_from_ids(ids, pos, list_pos_at) {
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let id_start = id_full.to_id()
-  let del = @op.DeleteSpanWithId::new(id_start, list_pos, len)
-  let op = @op.ListOp::Delete(del)
-  self.apply_text_op(handler, op)
+  if spans.length() == 0 {
+    return Ok(())
+  }
+  let need_txn = !self.txn_active && spans.length() > 1
+  if need_txn {
+    match self.begin_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  for span in spans {
+    let op = @op.ListOp::Delete(span)
+    match self.apply_text_op(handler, op) {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  if need_txn {
+    match self.commit_transaction() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  Ok(())
 }
 
 ///|

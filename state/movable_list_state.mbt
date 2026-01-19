@@ -74,6 +74,22 @@ pub fn MovableListState::id_at(
 }
 
 ///|
+pub fn MovableListState::ids_in_range(
+  self : MovableListState,
+  start : Int,
+  end : Int,
+) -> Result[Array[@types.IdFull], @types.LoroError] {
+  if start < 0 || end < start || end > self.list.length() {
+    return Err(@types.LoroError::InternalError("index out of range"))
+  }
+  let out : Array[@types.IdFull] = []
+  for i = start; i < end; i = i + 1 {
+    out.push(self.list[i].id)
+  }
+  Ok(out)
+}
+
+///|
 pub fn MovableListState::elem_id_at(
   self : MovableListState,
   index : Int,
