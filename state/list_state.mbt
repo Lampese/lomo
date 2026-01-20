@@ -111,6 +111,80 @@ fn list_elem_id_at(base : @types.IdFull, offset : Int) -> @types.IdFull {
 }
 
 ///|
+fn id_full_cmp(a : @types.IdFull, b : @types.IdFull) -> Int {
+  if a.lamport < b.lamport {
+    -1
+  } else if a.lamport > b.lamport {
+    1
+  } else if a.peer < b.peer {
+    -1
+  } else if a.peer > b.peer {
+    1
+  } else if a.counter < b.counter {
+    -1
+  } else if a.counter > b.counter {
+    1
+  } else {
+    0
+  }
+}
+
+///|
+fn list_elem_visible_in_vv(vv : @types.VersionVector, elem : Elem) -> Bool {
+  vv.includes_id(elem.id.to_id())
+}
+
+///|
+fn ListState::insert_pos_with_vv(
+  self : ListState,
+  pos : Int,
+  vv : @types.VersionVector,
+  new_id : @types.IdFull,
+) -> Result[Int, @types.LoroError] {
+  if pos < 0 {
+    return Err(@types.LoroError::InternalError("index out of range"))
+  }
+  let mut visible_count = 0
+  let mut last_visible = -1
+  let mut idx = 0
+  let mut gap_start = 0
+  let mut gap_end = self.list.length()
+  let mut found_gap = false
+  while idx < self.list.length() {
+    let elem = self.list[idx]
+    if list_elem_visible_in_vv(vv, elem) {
+      if visible_count == pos {
+        gap_start = last_visible + 1
+        gap_end = idx
+        found_gap = true
+        break
+      }
+      visible_count = visible_count + 1
+      last_visible = idx
+    }
+    idx = idx + 1
+  }
+  if !found_gap {
+    if visible_count == pos {
+      gap_start = last_visible + 1
+      gap_end = self.list.length()
+    } else {
+      return Err(@types.LoroError::InternalError("index out of range"))
+    }
+  }
+  let mut insert_idx = gap_start
+  while insert_idx < gap_end {
+    let elem = self.list[insert_idx]
+    if id_full_cmp(elem.id, new_id) < 0 {
+      insert_idx = insert_idx + 1
+    } else {
+      break
+    }
+  }
+  Ok(insert_idx)
+}
+
+///|
 pub fn ListState::insert(
   self : ListState,
   index : Int,
@@ -138,6 +212,27 @@ pub fn ListState::insert_batch(
   for v in values {
     let id = list_elem_id_at(base_id, offset)
     self.list.insert(index + offset, Elem::{ v, id })
+    offset = offset + 1
+  }
+  Ok(())
+}
+
+///|
+pub fn ListState::insert_batch_with_vv(
+  self : ListState,
+  index : Int,
+  values : Array[@types.LoroValue],
+  base_id : @types.IdFull,
+  vv : @types.VersionVector,
+) -> Result[Unit, @types.LoroError] {
+  let insert_at = match self.insert_pos_with_vv(index, vv, base_id) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let mut offset = 0
+  for v in values {
+    let id = list_elem_id_at(base_id, offset)
+    self.list.insert(insert_at + offset, Elem::{ v, id })
     offset = offset + 1
   }
   Ok(())
@@ -236,6 +331,26 @@ pub fn ListState::apply_inner_op(
     Insert(slice~, pos~) => {
       let values = arena.get_values(slice)
       self.insert_batch(pos, values, base_id)
+    }
+    Delete(span) => self.delete_by_id(span)
+    Move(from=_, elem_id~, to~) => self.move_by_id(elem_id, to)
+    Set(elem_id~, value~) => self.set_by_id(elem_id, value)
+    _ => Err(@types.LoroError::Unsupported("list op not supported"))
+  }
+}
+
+///|
+pub fn ListState::apply_inner_op_with_vv(
+  self : ListState,
+  arena : @arena.SharedArena,
+  op : @op.InnerListOp,
+  base_id : @types.IdFull,
+  vv : @types.VersionVector,
+) -> Result[Unit, @types.LoroError] {
+  match op {
+    Insert(slice~, pos~) => {
+      let values = arena.get_values(slice)
+      self.insert_batch_with_vv(pos, values, base_id, vv)
     }
     Delete(span) => self.delete_by_id(span)
     Move(from=_, elem_id~, to~) => self.move_by_id(elem_id, to)

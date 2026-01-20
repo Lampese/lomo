@@ -37,22 +37,23 @@ pub fn ExpandType::reverse(self : ExpandType) -> ExpandType {
 
 ///|
 pub fn ExpandType::from_info(info : Int) -> ExpandType {
-  let bits = info & 0x3
+  let bits = info & 0x6
   match bits {
-    1 => ExpandType::Before
-    2 => ExpandType::After
-    3 => ExpandType::Both
+    2 => ExpandType::Before
+    4 => ExpandType::After
+    6 => ExpandType::Both
     _ => ExpandType::NoExpand
   }
 }
 
 ///|
 pub fn ExpandType::to_info(self : ExpandType) -> Int {
+  let bits = 0x80
   match self {
-    ExpandType::NoExpand => 0
-    ExpandType::Before => 1
-    ExpandType::After => 2
-    ExpandType::Both => 3
+    ExpandType::NoExpand => bits
+    ExpandType::Before => bits | 0x2
+    ExpandType::After => bits | 0x4
+    ExpandType::Both => bits | 0x6
   }
 }
 

@@ -57,6 +57,30 @@ pub fn OpLog::get_change(self : OpLog, id : @types.ID) -> Change? {
 }
 
 ///|
+pub fn OpLog::changes_sorted(self : OpLog) -> Array[Change] {
+  let out : Array[Change] = []
+  for _id, change in self.changes {
+    out.push(change)
+  }
+  out.sort_by((a, b) => if a.lamport() < b.lamport() {
+    -1
+  } else if a.lamport() > b.lamport() {
+    1
+  } else if a.id().peer < b.id().peer {
+    -1
+  } else if a.id().peer > b.id().peer {
+    1
+  } else if a.id().counter < b.id().counter {
+    -1
+  } else if a.id().counter > b.id().counter {
+    1
+  } else {
+    0
+  })
+  out
+}
+
+///|
 fn OpLog::change_by_id_last(self : OpLog, id : @types.ID) -> Change? {
   for change_id in self.change_order {
     match self.changes.get(change_id) {

@@ -238,6 +238,102 @@ pub fn DocState::apply_op(
 }
 
 ///|
+pub fn DocState::apply_op_with_vv(
+  self : DocState,
+  arena : @arena.SharedArena,
+  op : @op.Op,
+  id : @types.ID,
+  lamport : @types.Lamport,
+  vv : @types.VersionVector,
+) -> Result[Unit, @types.LoroError] {
+  let container_id = op.container()
+  let container_type = container_id.container_type()
+  let base_id = @types.IdFull::new(id.peer, id.counter, lamport)
+  let state = match self.containers.get(container_id) {
+    Some(existing) => existing
+    None => {
+      let created = match container_type {
+        @types.ContainerType::Map => ContainerState::MapState(MapState::new())
+        @types.ContainerType::List =>
+          ContainerState::ListState(ListState::new())
+        @types.ContainerType::Text =>
+          ContainerState::TextState(TextState::new())
+        @types.ContainerType::MovableList =>
+          ContainerState::MovableListState(MovableListState::new())
+        @types.ContainerType::Tree =>
+          ContainerState::TreeState(TreeState::new())
+        @types.ContainerType::Counter =>
+          ContainerState::CounterState(CounterState::new())
+        _ => ContainerState::MapState(MapState::new())
+      }
+      self.containers[container_id] = created
+      created
+    }
+  }
+  let updated = match (container_type, state, op.content()) {
+    (
+      @types.ContainerType::Map,
+      ContainerState::MapState(map_state),
+      @op.InnerContent::Map(map_set),
+    ) => {
+      let key = map_set.key()
+      match map_set.value() {
+        Some(v) => map_state.set(key, v, base_id)
+        None => map_state.delete(key, base_id)
+      }
+      ContainerState::MapState(map_state)
+    }
+    (
+      @types.ContainerType::List,
+      ContainerState::ListState(list_state),
+      @op.InnerContent::List(inner),
+    ) =>
+      match list_state.apply_inner_op_with_vv(arena, inner, base_id, vv) {
+        Ok(_) => ContainerState::ListState(list_state)
+        Err(err) => return Err(err)
+      }
+    (
+      @types.ContainerType::Text,
+      ContainerState::TextState(text_state),
+      @op.InnerContent::List(inner),
+    ) =>
+      match text_state.apply_inner_op_with_vv(inner, base_id, vv) {
+        Ok(_) => ContainerState::TextState(text_state)
+        Err(err) => return Err(err)
+      }
+    (
+      @types.ContainerType::MovableList,
+      ContainerState::MovableListState(list_state),
+      @op.InnerContent::List(inner),
+    ) =>
+      match list_state.apply_inner_op_with_vv(arena, inner, base_id, vv) {
+        Ok(_) => ContainerState::MovableListState(list_state)
+        Err(err) => return Err(err)
+      }
+    (
+      @types.ContainerType::Tree,
+      ContainerState::TreeState(tree_state),
+      @op.InnerContent::Tree(tree_op),
+    ) =>
+      match tree_state.apply_op(tree_op, base_id) {
+        Ok(_) => ContainerState::TreeState(tree_state)
+        Err(err) => return Err(err)
+      }
+    (
+      @types.ContainerType::Counter,
+      ContainerState::CounterState(counter_state),
+      @op.InnerContent::Counter(counter_op),
+    ) => {
+      counter_state.apply(counter_op.delta())
+      ContainerState::CounterState(counter_state)
+    }
+    _ => return Err(@types.LoroError::Unsupported("op/container mismatch"))
+  }
+  self.containers[container_id] = updated
+  Ok(())
+}
+
+///|
 pub fn DocState::container_items(
   self : DocState,
 ) -> Array[(@types.ContainerID, ContainerState)] {
@@ -503,6 +599,19 @@ pub fn DocState::text_text_pos_to_list_pos(
         Err(@types.LoroError::InvalidContainer("text not found"))
       }
     }
+    _ => Err(@types.LoroError::InvalidContainer("text not found"))
+  }
+}
+
+///|
+pub fn DocState::text_text_index_to_list_pos(
+  self : DocState,
+  id : @types.ContainerID,
+  text_pos : Int,
+) -> Result[Int, @types.LoroError] {
+  match self.containers.get(id) {
+    Some(ContainerState::TextState(text_state)) =>
+      text_state.text_index_to_list_pos(text_pos)
     _ => Err(@types.LoroError::InvalidContainer("text not found"))
   }
 }

@@ -135,6 +135,64 @@ fn movable_list_id_at(base : @types.IdFull, offset : Int) -> @types.IdFull {
 }
 
 ///|
+fn movable_elem_visible_in_vv(
+  vv : @types.VersionVector,
+  elem : MovableElem,
+) -> Bool {
+  vv.includes_id(elem.id.to_id())
+}
+
+///|
+fn MovableListState::insert_pos_with_vv(
+  self : MovableListState,
+  pos : Int,
+  vv : @types.VersionVector,
+  new_id : @types.IdFull,
+) -> Result[Int, @types.LoroError] {
+  if pos < 0 {
+    return Err(@types.LoroError::InternalError("index out of range"))
+  }
+  let mut visible_count = 0
+  let mut last_visible = -1
+  let mut idx = 0
+  let mut gap_start = 0
+  let mut gap_end = self.list.length()
+  let mut found_gap = false
+  while idx < self.list.length() {
+    let elem = self.list[idx]
+    if movable_elem_visible_in_vv(vv, elem) {
+      if visible_count == pos {
+        gap_start = last_visible + 1
+        gap_end = idx
+        found_gap = true
+        break
+      }
+      visible_count = visible_count + 1
+      last_visible = idx
+    }
+    idx = idx + 1
+  }
+  if !found_gap {
+    if visible_count == pos {
+      gap_start = last_visible + 1
+      gap_end = self.list.length()
+    } else {
+      return Err(@types.LoroError::InternalError("index out of range"))
+    }
+  }
+  let mut insert_idx = gap_start
+  while insert_idx < gap_end {
+    let elem = self.list[insert_idx]
+    if id_full_cmp(elem.id, new_id) < 0 {
+      insert_idx = insert_idx + 1
+    } else {
+      break
+    }
+  }
+  Ok(insert_idx)
+}
+
+///|
 fn MovableListState::insert_batch(
   self : MovableListState,
   index : Int,
@@ -149,6 +207,33 @@ fn MovableListState::insert_batch(
     let id = movable_list_id_at(base_id, offset)
     let elem_id = id.to_id_lp()
     self.list.insert(index + offset, MovableElem::{
+      v,
+      id,
+      elem_id,
+      last_set_id: elem_id,
+    })
+    offset = offset + 1
+  }
+  Ok(())
+}
+
+///|
+fn MovableListState::insert_batch_with_vv(
+  self : MovableListState,
+  index : Int,
+  values : Array[@types.LoroValue],
+  base_id : @types.IdFull,
+  vv : @types.VersionVector,
+) -> Result[Unit, @types.LoroError] {
+  let insert_at = match self.insert_pos_with_vv(index, vv, base_id) {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let mut offset = 0
+  for v in values {
+    let id = movable_list_id_at(base_id, offset)
+    let elem_id = id.to_id_lp()
+    self.list.insert(insert_at + offset, MovableElem::{
       v,
       id,
       elem_id,
@@ -241,6 +326,27 @@ pub fn MovableListState::apply_inner_op(
     Insert(slice~, pos~) => {
       let values = arena.get_values(slice)
       self.insert_batch(pos, values, base_id)
+    }
+    Delete(span) => self.delete_by_id(span)
+    Move(from=_, elem_id~, to~) => self.move_by_elem_id(elem_id, to)
+    Set(elem_id~, value~) =>
+      self.set_by_elem_id(elem_id, value, base_id.to_id_lp())
+    _ => Err(@types.LoroError::Unsupported("list op not supported"))
+  }
+}
+
+///|
+pub fn MovableListState::apply_inner_op_with_vv(
+  self : MovableListState,
+  arena : @arena.SharedArena,
+  op : @op.InnerListOp,
+  base_id : @types.IdFull,
+  vv : @types.VersionVector,
+) -> Result[Unit, @types.LoroError] {
+  match op {
+    Insert(slice~, pos~) => {
+      let values = arena.get_values(slice)
+      self.insert_batch_with_vv(pos, values, base_id, vv)
     }
     Delete(span) => self.delete_by_id(span)
     Move(from=_, elem_id~, to~) => self.move_by_elem_id(elem_id, to)

@@ -1,6 +1,6 @@
 {
   "name": "Lampese/lomo",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "license": "MIT",
   "deps": {
     "moonbitlang/async": "0.16.1"

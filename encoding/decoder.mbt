@@ -454,6 +454,7 @@ fn read_text_state(
     Ok(value) => value.to_int()
     Err(err) => return Err(err)
   }
+  let mut style_counter = 0
   for i = 0; i < style_len; i = i + 1 {
     let start = match read_int(reader) {
       Ok(value) => value
@@ -475,14 +476,25 @@ fn read_text_state(
       Ok(value) => value
       Err(err) => return Err(err)
     }
-    let span = @state.StyleSpan::new(
-      start,
-      end,
-      key,
-      value,
-      @types.ExpandType::from_info(info),
+    let list_start = text_state.text_pos_to_list_pos(start)
+    let list_end = text_state.text_pos_to_list_pos(end)
+    let base_id = @types.IdFull::new(
+      0UL,
+      style_counter,
+      style_counter.reinterpret_as_uint(),
     )
-    text_state.append_style(span)
+    style_counter = style_counter + 2
+    let op = @op.InnerListOp::StyleStart(
+      start=list_start,
+      end=list_end,
+      key~,
+      info~,
+      value~,
+    )
+    match text_state.apply_inner_op(op, base_id) {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
   }
   Ok(text_state)
 }

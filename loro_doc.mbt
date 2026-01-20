@@ -1762,7 +1762,7 @@ pub fn LoroDoc::text_delete(
     Ok(value) => value
     Err(err) => return Err(err)
   }
-  let list_pos_at = (text_pos : Int) => self.state.text_text_pos_to_list_pos(
+  let list_pos_at = (text_pos : Int) => self.state.text_text_index_to_list_pos(
     handler.id(),
     text_pos,
   )
@@ -2141,17 +2141,28 @@ pub fn LoroDoc::checkout(
   let changes = self.changes_until_vv(vv)
   let next_state = @state.DocState::new()
   for change in changes {
-    let mut offset = 0
+    let base_vv = match self.oplog.frontiers_to_vv(change.deps()) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    let local_vv = base_vv
     let change_id = change.id()
-    let lamport = change.lamport()
+    let base_lamport = change.lamport()
     for op in change.ops() {
-      let id = change_id.inc(offset)
-      let op_lamport = lamport + offset.reinterpret_as_uint()
-      match next_state.apply_op(self.arena, op, id, op_lamport) {
+      let counter = op.counter()
+      let offset = counter - change_id.counter
+      let op_lamport = base_lamport + offset.reinterpret_as_uint()
+      let id = @types.ID::new(change_id.peer, counter)
+      match
+        next_state.apply_op_with_vv(self.arena, op, id, op_lamport, local_vv) {
         Ok(_) => ()
         Err(err) => return Err(err)
       }
-      offset = offset + op.content_len()
+      let len = op.content_len()
+      if len > 0 {
+        let last_id = @types.ID::new(change_id.peer, counter + len - 1)
+        local_vv.extend_to_include_last_id(last_id)
+      }
     }
   }
   self.state = next_state
@@ -2406,6 +2417,7 @@ fn LoroDoc::apply_decoded_changes(
   decoded : Array[@encoding.DecodedChange],
 ) -> Result[Unit, @types.LoroError] {
   let mut pending = decoded
+  let mut applied_any = false
   let mut progressed = true
   while progressed {
     progressed = false
@@ -2415,7 +2427,10 @@ fn LoroDoc::apply_decoded_changes(
         ApplyState::Applied => ()
         ApplyState::CanApply =>
           match self.apply_decoded_change(change) {
-            Ok(_) => progressed = true
+            Ok(_) => {
+              progressed = true
+              applied_any = true
+            }
             Err(err) => return Err(err)
           }
         ApplyState::Awaiting => next_pending.push(change)
@@ -2426,6 +2441,46 @@ fn LoroDoc::apply_decoded_changes(
   if pending.length() > 0 {
     return Err(@types.LoroError::MissingDependency("missing dependencies"))
   }
+  if applied_any {
+    match self.rebuild_state_from_oplog() {
+      Ok(_) => ()
+      Err(err) => return Err(err)
+    }
+  }
+  Ok(())
+}
+
+///|
+fn LoroDoc::rebuild_state_from_oplog(
+  self : LoroDoc,
+) -> Result[Unit, @types.LoroError] {
+  let new_state = @state.DocState::new()
+  let changes = self.oplog.changes_sorted()
+  for change in changes {
+    let base_vv = match self.oplog.frontiers_to_vv(change.deps()) {
+      Ok(value) => value
+      Err(err) => return Err(err)
+    }
+    let vv = base_vv
+    let base_id = change.id()
+    let base_lamport = change.lamport()
+    for op in change.ops() {
+      let counter = op.counter()
+      let offset = counter - base_id.counter
+      let lamport = base_lamport + offset.reinterpret_as_uint()
+      let id = @types.ID::new(base_id.peer, counter)
+      match new_state.apply_op_with_vv(self.arena, op, id, lamport, vv) {
+        Ok(_) => ()
+        Err(err) => return Err(err)
+      }
+      let len = op.content_len()
+      if len > 0 {
+        let last_id = @types.ID::new(base_id.peer, counter + len - 1)
+        vv.extend_to_include_last_id(last_id)
+      }
+    }
+  }
+  self.state = new_state
   Ok(())
 }
 

@@ -88,6 +88,7 @@ pub struct OpLog {
 }
 pub fn OpLog::all_changes(Self) -> Array[Change]
 pub fn OpLog::apply_change_from_remote(Self, PendingChange) -> Unit
+pub fn OpLog::changes_sorted(Self) -> Array[Change]
 pub fn OpLog::dag(Self) -> AppDag
 pub fn OpLog::extend_pending_changes_with_unknown_lamport(Self, Array[Change]) -> Result[Unit, @types.LoroError]
 pub fn OpLog::frontiers(Self) -> @types.Frontiers

@@ -57,6 +57,11 @@ pub fn Op::container(self : Op) -> @types.ContainerID {
 }
 
 ///|
+pub fn Op::counter(self : Op) -> @types.Counter {
+  self.counter
+}
+
+///|
 pub fn InnerContent::content_len(self : InnerContent) -> Int {
   match self {
     List(op) => op.content_len()

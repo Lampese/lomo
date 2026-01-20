@@ -12,6 +12,13 @@ import(
 // Errors
 
 // Types and methods
+pub(all) enum AnchorType {
+  Start
+  End
+}
+pub impl Eq for AnchorType
+pub impl Show for AnchorType
+
 pub enum ContainerState {
   MapState(MapState)
   ListState(ListState)
@@ -35,6 +42,7 @@ pub struct DocState {
   containers : Map[@types.ContainerID, ContainerState]
 }
 pub fn DocState::apply_op(Self, @arena.SharedArena, @op.Op, @types.ID, UInt) -> Result[Unit, @types.LoroError]
+pub fn DocState::apply_op_with_vv(Self, @arena.SharedArena, @op.Op, @types.ID, UInt, @types.VersionVector) -> Result[Unit, @types.LoroError]
 pub fn DocState::apply_raw_op(Self, @arena.SharedArena, @op.RawOp) -> Result[Unit, @types.LoroError]
 pub fn DocState::container_items(Self) -> Array[(@types.ContainerID, ContainerState)]
 pub fn DocState::counter_value(Self, @types.ContainerID) -> Result[Double, @types.LoroError]
@@ -68,6 +76,7 @@ pub fn DocState::text_plain_text(Self, @types.ContainerID) -> Result[String, @ty
 pub fn DocState::text_richtext_value(Self, @types.ContainerID) -> Result[@types.LoroValue, @types.LoroError]
 pub fn DocState::text_slice(Self, @types.ContainerID, Int, Int) -> Result[String, @types.LoroError]
 pub fn DocState::text_styles(Self, @types.ContainerID) -> Result[Array[StyleSpan], @types.LoroError]
+pub fn DocState::text_text_index_to_list_pos(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
 pub fn DocState::text_text_pos_to_list_pos(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
 pub fn DocState::text_unicode_index_from_utf16(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
 pub fn DocState::text_unicode_index_from_utf8(Self, @types.ContainerID, Int) -> Result[Int, @types.LoroError]
@@ -86,6 +95,7 @@ pub struct ListState {
 }
 pub fn ListState::append_elem(Self, @types.LoroValue, @types.IdFull) -> Unit
 pub fn ListState::apply_inner_op(Self, @arena.SharedArena, @op.InnerListOp, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn ListState::apply_inner_op_with_vv(Self, @arena.SharedArena, @op.InnerListOp, @types.IdFull, @types.VersionVector) -> Result[Unit, @types.LoroError]
 pub fn ListState::delete_by_id(Self, @op.DeleteSpanWithId) -> Result[Unit, @types.LoroError]
 pub fn ListState::delete_range(Self, Int, Int) -> Result[Unit, @types.LoroError]
 pub fn ListState::elems(Self) -> Array[Elem]
@@ -93,6 +103,7 @@ pub fn ListState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
 pub fn ListState::ids_in_range(Self, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn ListState::insert(Self, Int, @types.LoroValue, @types.IdFull) -> Result[Unit, @types.LoroError]
 pub fn ListState::insert_batch(Self, Int, Array[@types.LoroValue], @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn ListState::insert_batch_with_vv(Self, Int, Array[@types.LoroValue], @types.IdFull, @types.VersionVector) -> Result[Unit, @types.LoroError]
 pub fn ListState::len(Self) -> Int
 pub fn ListState::move_by_id(Self, @types.IdLp, Int) -> Result[Unit, @types.LoroError]
 pub fn ListState::new() -> Self
@@ -138,6 +149,7 @@ pub struct MovableListState {
 pub fn MovableListState::append_elem(Self, @types.LoroValue, @types.IdFull) -> Unit
 pub fn MovableListState::append_elem_full(Self, @types.LoroValue, @types.IdFull, @types.IdLp, @types.IdLp) -> Unit
 pub fn MovableListState::apply_inner_op(Self, @arena.SharedArena, @op.InnerListOp, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn MovableListState::apply_inner_op_with_vv(Self, @arena.SharedArena, @op.InnerListOp, @types.IdFull, @types.VersionVector) -> Result[Unit, @types.LoroError]
 pub fn MovableListState::elem_id_at(Self, Int) -> Result[@types.IdLp, @types.LoroError]
 pub fn MovableListState::elems(Self) -> Array[MovableElem]
 pub fn MovableListState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
@@ -147,6 +159,20 @@ pub fn MovableListState::new() -> Self
 pub fn MovableListState::to_value(Self) -> @types.LoroValue
 pub fn MovableListState::value_at(Self, Int) -> Result[@types.LoroValue?, @types.LoroError]
 pub impl Show for MovableListState
+
+pub(all) enum RichtextElem {
+  Text(TextElem)
+  Anchor(style~ : StyleOp, anchor~ : AnchorType)
+}
+pub impl Show for RichtextElem
+
+pub(all) struct StyleOp {
+  id : @types.IdFull
+  key : String
+  value : @types.LoroValue
+  info : Int
+}
+pub impl Show for StyleOp
 
 pub struct StyleSpan {
   start : Int
@@ -170,23 +196,28 @@ pub struct TextElem {
 pub impl Show for TextElem
 
 pub struct TextState {
-  elems : Array[TextElem]
-  styles : Array[StyleSpan]
+  elems : Array[RichtextElem]
 }
+pub fn TextState::append_anchor(Self, StyleOp, AnchorType) -> Unit
 pub fn TextState::append_elem(Self, Char, @types.IdFull) -> Unit
-pub fn TextState::append_style(Self, StyleSpan) -> Unit
 pub fn TextState::apply_inner_op(Self, @op.InnerListOp, @types.IdFull) -> Result[Unit, @types.LoroError]
+pub fn TextState::apply_inner_op_with_vv(Self, @op.InnerListOp, @types.IdFull, @types.VersionVector) -> Result[Unit, @types.LoroError]
 pub fn TextState::delete(Self, Int, Int) -> Unit
 pub fn TextState::delete_by_id(Self, @op.DeleteSpanWithId) -> Unit
 pub fn TextState::elems(Self) -> Array[TextElem]
 pub fn TextState::id_at(Self, Int) -> Result[@types.IdFull, @types.LoroError]
 pub fn TextState::ids_in_range(Self, Int, Int) -> Result[Array[@types.IdFull], @types.LoroError]
 pub fn TextState::insert(Self, Int, String, @types.IdFull) -> Unit
+pub fn TextState::insert_with_vv(Self, Int, String, @types.IdFull, @types.VersionVector) -> Unit
 pub fn TextState::len(Self) -> Int
+pub fn TextState::list_pos_to_text_pos(Self, Int) -> Int
 pub fn TextState::new() -> Self
 pub fn TextState::plain_text(Self) -> String
+pub fn TextState::raw_elems(Self) -> Array[RichtextElem]
 pub fn TextState::slice(Self, Int, Int) -> Result[String, @types.LoroError]
 pub fn TextState::styles(Self) -> Array[StyleSpan]
+pub fn TextState::text_index_to_list_pos(Self, Int) -> Result[Int, @types.LoroError]
+pub fn TextState::text_pos_to_list_pos(Self, Int) -> Int
 pub fn TextState::to_richtext_value(Self) -> @types.LoroValue
 pub fn TextState::to_value(Self) -> @types.LoroValue
 pub fn TextState::unicode_index_from_utf16(Self, Int) -> Result[Int, @types.LoroError]

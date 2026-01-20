@@ -129,6 +129,7 @@ pub struct Op {
 pub fn Op::container(Self) -> @types.ContainerID
 pub fn Op::content(Self) -> InnerContent
 pub fn Op::content_len(Self) -> Int
+pub fn Op::counter(Self) -> Int
 pub fn Op::new(Int, @types.ContainerID, InnerContent) -> Self
 pub fn Op::slice(Self, Int, Int) -> Self
 pub impl Show for Op

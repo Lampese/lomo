@@ -17,14 +17,6 @@ priv struct DecodedMark {
 }
 
 ///|
-priv struct StyleStart {
-  start : Int
-  key : String
-  value : @types.LoroValue
-  info : Int
-}
-
-///|
 priv struct DecodedListIds {
   peer_idx : Array[Int]
   counter : Array[Int]
@@ -462,7 +454,7 @@ fn decode_text_state_snapshot(
   let state = @state.TextState::new()
   let mut pos = 0
   let mut mark_idx = 0
-  let open : Map[@types.ID, StyleStart] = {}
+  let open : Map[@types.ID, @state.StyleOp] = {}
   for span in encoded.spans {
     if span.peer_idx < 0 || span.peer_idx >= peers.length() {
       return Err(@types.LoroError::DecodeError("invalid text peer index"))
@@ -497,22 +489,19 @@ fn decode_text_state_snapshot(
       }
       let key = encoded.keys[mark.key_idx]
       let info = mark.info
-      let start = StyleStart::{ start: pos, key, value: mark.value, info }
-      open[@types.ID::new(peer, counter)] = start
+      let style = @state.StyleOp::{
+        id: @types.IdFull::new(peer, counter, lamport.reinterpret_as_uint()),
+        key,
+        value: mark.value,
+        info,
+      }
+      open[@types.ID::new(peer, counter)] = style
+      state.append_anchor(style, @state.AnchorType::Start)
     } else if span.len == -1 {
       let start_id = @types.ID::new(peer, counter - 1)
       match open.get(start_id) {
-        Some(start) => {
-          let expand = @types.ExpandType::from_info(start.info)
-          state.append_style(
-            @state.StyleSpan::new(
-              start.start,
-              pos,
-              start.key,
-              start.value,
-              expand,
-            ),
-          )
+        Some(style) => {
+          state.append_anchor(style, @state.AnchorType::End)
           open.remove(start_id)
         }
         None => return Err(@types.LoroError::DecodeError("missing mark start"))
@@ -1470,106 +1459,63 @@ fn encode_list_state_snapshot(list_state : @state.ListState) -> Bytes {
 
 ///|
 fn encode_text_state_snapshot(text_state : @state.TextState) -> Bytes {
-  let elems = text_state.elems()
+  let elems = text_state.raw_elems()
   let text = text_state.plain_text()
-  let styles = text_state.styles()
-  let peers_map : Map[@types.PeerID, Bool] = {}
-  for elem in elems {
-    peers_map[elem.id.peer] = true
-  }
   let peers : Array[@types.PeerID] = []
-  for p, _ in peers_map {
-    peers.push(p)
-  }
-  peers.sort_by((a, b) => if a < b { -1 } else if a > b { 1 } else { 0 })
   let peer_index : Map[@types.PeerID, Int] = {}
-  for i = 0; i < peers.length(); i = i + 1 {
-    peer_index[peers[i]] = i
+  for elem in elems {
+    let peer = match elem {
+      @state.RichtextElem::Text(text_elem) => text_elem.id.peer
+      @state.RichtextElem::Anchor(style~, anchor=_anchor) => style.id.peer
+    }
+    if peer_index.get(peer) is None {
+      peer_index[peer] = peers.length()
+      peers.push(peer)
+    }
   }
   let keys : Array[String] = []
   let key_map : Map[String, Int] = {}
-  for span in styles {
-    if key_map.get(span.key()) is None {
-      key_map[span.key()] = 0
-      keys.push(span.key())
-    }
-  }
-  keys.sort_by((a, b) => if a < b { -1 } else if a > b { 1 } else { 0 })
-  for i = 0; i < keys.length(); i = i + 1 {
-    key_map[keys[i]] = i
-  }
-  let len = elems.length()
-  let mut mark_counter = 0
-  let starts : Map[Int, Array[(Int, @types.LoroValue, Int, Int)]] = {}
-  let ends : Map[Int, Array[(Int, Int)]] = {}
-  for span in styles {
-    let start = if span.start() < 0 { 0 } else { span.start() }
-    let end = if span.end() > len { len } else { span.end() }
-    if end <= start {
-      continue
-    }
-    let key_idx = match key_map.get(span.key()) {
-      Some(v) => v
-      None => 0
-    }
-    let info = span.expand().to_info()
-    let counter = mark_counter * 2
-    mark_counter = mark_counter + 1
-    match starts.get(start) {
-      Some(arr) => arr.push((key_idx, span.value(), info, counter))
-      None => starts[start] = [(key_idx, span.value(), info, counter)]
-    }
-    match ends.get(end) {
-      Some(arr) => arr.push((counter, counter + 1))
-      None => ends[end] = [(counter, counter + 1)]
-    }
-  }
-  let boundaries : Array[Int] = [0, len]
-  for pos, _ in starts {
-    boundaries.push(pos)
-  }
-  for pos, _ in ends {
-    boundaries.push(pos)
-  }
-  boundaries.sort_by((a, b) => if a < b { -1 } else if a > b { 1 } else { 0 })
-  let unique : Array[Int] = []
-  let mut last = -1
-  for b in boundaries {
-    if b != last {
-      unique.push(b)
-      last = b
+  for elem in elems {
+    match elem {
+      @state.RichtextElem::Anchor(style~, anchor=_anchor) =>
+        if key_map.get(style.key) is None {
+          key_map[style.key] = keys.length()
+          keys.push(style.key)
+        }
+      _ => ()
     }
   }
   let spans : Array[DecodedTextSpan] = []
   let marks : Array[DecodedMark] = []
-  let mut pos = 0
-  let mut boundary_idx = 0
-  let mark_peer_idx = if peers.length() > 0 { 0 } else { 0 }
-  while boundary_idx < unique.length() {
-    let boundary = unique[boundary_idx]
-    if boundary > pos {
-      let mut i = pos
-      while i < boundary {
-        let elem = elems[i]
-        let peer_idx = match peer_index.get(elem.id.peer) {
+  let mut i = 0
+  while i < elems.length() {
+    match elems[i] {
+      @state.RichtextElem::Text(text_elem) => {
+        let start_id = text_elem.id
+        let start_peer = start_id.peer
+        let peer_idx = match peer_index.get(start_peer) {
           Some(v) => v
           None => 0
         }
-        let start_counter = elem.id.counter
-        let start_lamport = elem.id.lamport.reinterpret_as_int()
+        let start_counter = start_id.counter
+        let start_lamport = start_id.lamport.reinterpret_as_int()
         let mut run = 1
-        while i + run < boundary {
-          let next = elems[i + run]
-          if next.id.peer != elem.id.peer {
-            break
+        while i + run < elems.length() {
+          match elems[i + run] {
+            @state.RichtextElem::Text(next) => {
+              if next.id.peer != start_peer {
+                break
+              }
+              if next.id.counter != start_counter + run {
+                break
+              }
+              if next.id.lamport.reinterpret_as_int() != start_lamport + run {
+                break
+              }
+              run = run + 1
+            }
+            _ => break
           }
-          if next.id.counter != start_counter + run {
-            break
-          }
-          if next.id.lamport.reinterpret_as_int() != start_lamport + run {
-            break
-          }
-          run = run + 1
         }
         spans.push(DecodedTextSpan::{
           peer_idx,
@@ -1579,36 +1525,42 @@ fn encode_text_state_snapshot(text_state : @state.TextState) -> Bytes {
         })
         i = i + run
       }
-      pos = boundary
-    }
-    match ends.get(boundary) {
-      Some(arr) =>
-        for entry in arr {
-          let (_, end_counter) = entry
-          spans.push(DecodedTextSpan::{
-            peer_idx: mark_peer_idx,
-            counter: end_counter,
-            lamport_sub: 0,
-            len: -1,
-          })
+      @state.RichtextElem::Anchor(style~, anchor~) => {
+        let peer_idx = match peer_index.get(style.id.peer) {
+          Some(v) => v
+          None => 0
         }
-      None => ()
-    }
-    match starts.get(boundary) {
-      Some(arr) =>
-        for entry in arr {
-          let (key_idx, value, info, counter) = entry
-          spans.push(DecodedTextSpan::{
-            peer_idx: mark_peer_idx,
-            counter,
-            lamport_sub: 0,
-            len: 0,
-          })
-          marks.push(DecodedMark::{ key_idx, value, info })
+        let lamport_sub = style.id.lamport.reinterpret_as_int() -
+          style.id.counter
+        match anchor {
+          @state.AnchorType::Start => {
+            spans.push(DecodedTextSpan::{
+              peer_idx,
+              counter: style.id.counter,
+              lamport_sub,
+              len: 0,
+            })
+            let key_idx = match key_map.get(style.key) {
+              Some(v) => v
+              None => 0
+            }
+            marks.push(DecodedMark::{
+              key_idx,
+              value: style.value,
+              info: style.info,
+            })
+          }
+          @state.AnchorType::End =>
+            spans.push(DecodedTextSpan::{
+              peer_idx,
+              counter: style.id.counter + 1,
+              lamport_sub,
+              len: -1,
+            })
         }
-      None => ()
+        i = i + 1
+      }
     }
-    boundary_idx = boundary_idx + 1
   }
   let span_columns = encode_text_spans(spans)
   let marks_bytes = encode_marks(marks)
