@@ -1,8 +1,9 @@
 {
   "name": "Lampese/lomo",
   "version": "0.0.5",
-  "license": "MIT",
   "deps": {
-    "moonbitlang/async": "0.16.1"
-  }
+    "moonbitlang/async": "0.16.1",
+    "moonbitlang/quickcheck": "0.9.9"
+  },
+  "license": "MIT"
 }
