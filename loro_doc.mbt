@@ -1526,6 +1526,9 @@ pub fn LoroDoc::text_insert(
   pos : Int,
   text : String,
 ) -> Result[Unit, @types.LoroError] {
+  if text is "" {
+    return Ok(())
+  }
   let slice = @op.ListSlice::from_str(text)
   let list_pos = match self.state.text_text_pos_to_list_pos(handler.id(), pos) {
     Ok(value) => value
